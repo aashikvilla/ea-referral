@@ -1,29 +1,31 @@
 # Project instructions
 
-This repository is the starter for a shareable LinkedIn referral assistant. Keep the implementation generic until the user supplies product requirements.
+This project is an interactive demo of a fictional EA referral assistant, with connected-mode auth, API, repository, file processing, and database migration groundwork. The screen scope follows [`docs/EA_Referral_Assistant_PRD.md`](docs/EA_Referral_Assistant_PRD.md). Demo mode is local-only; connected mode is not ready for real applicants.
 
-## Scope
+## Product scope and boundaries
 
-- Do not add referral workflows, authentication, databases, email, analytics, deployment configuration, or LinkedIn integrations without a request.
-- Do not automate LinkedIn activity or scrape LinkedIn. Use documented, authorized integrations only when explicitly requested.
-- Do not invent which personal details a referral requester must provide or how long those details should be retained.
+- Build the candidate intake and status experience and the private-owner review experience as interactive demo flows using invented data. Keep connected-mode APIs guarded and explicit about incomplete capabilities.
+- Clearly identify demo actions and data as local/in-memory. Do not claim that a request was sent, a resume was uploaded, a candidate was emailed, or a referral was submitted to EA.
+- Do not automate EA portal submissions, scrape LinkedIn, read LinkedIn messages, or invent EA policies/options. Treat unverified EA availability as unknown and keep manual owner review available.
+- Auth token validation, owner checks, repository/API code, and SQL migration groundwork exist. Connected resume and supporting-file upload, bounded extraction for supported text-based PDF/DOCX files, verified application submission, and owner review routes are implemented but need configured providers and integration verification. Candidate email-code sign-in UI/API exists; Supabase OTP delivery configuration, separate status-link delivery, and migration deployment are outstanding.
+- OCR, email sending, AI analysis, and deployment are not implemented. Malware scanning fails closed to quarantine unless a configured scanner verifies the uploaded bytes. Resume replacement must remain scoped to the authenticated candidate's own job application and an explicit owner correction request; replacement invalidates the prior evidence assessment. Adding credentials alone does not make connected intake production-ready. Keep these boundaries explicit and do not add provider credentials or secrets.
+- Optional showcase participation must not increase a candidate's evidence score. The score is a documented evidence coverage heuristic; it is not a hiring or referral probability and never makes a decision for the owner.
+- Keep fictional fixtures and reserved `.invalid` email addresses. Do not add real candidate personal data.
 
 ## Engineering conventions
 
-- Use the Next.js App Router and TypeScript. Prefer Server Components; add a Client Component only for browser-only state or interaction.
-- Keep server-only logic and secrets out of Client Components. Validate untrusted inputs on the server.
-- Cache only data that is safe to share. This project enables Cache Components and Partial Prefetching; use `use cache` deliberately and never cache private, user-specific referral data across users.
-- React Compiler is enabled. Avoid manual memoization unless it is needed and supported by current React guidance.
-- Prefer existing platform features over new dependencies. Keep `package-lock.json` as the only lockfile.
-- Consult the installed Next.js documentation under `node_modules/next/dist/docs/` before using version-sensitive APIs. Use official documentation when local docs are unavailable.
-- Keep the generated Next.js guidance below intact; `next dev` refreshes that block.
+- Use the Next.js App Router and TypeScript. Prefer Server Components; use Client Components only for browser interaction.
+- Keep domain behavior in small typed modules under `src/lib/domain/`. Validate all untrusted values at their boundary.
+- Keep the single referral slot per canonical job invariant in domain transitions. A confirmed referral outranks a reservation; unknown listing availability must not admit intake.
+- Use the canonical job identifier `EA:<digits>` and accept only documented official EA job URLs.
+- Avoid new dependencies when the platform is sufficient. Keep `package-lock.json` as the only lockfile.
+- Consult the installed Next.js documentation under `node_modules/next/dist/docs/` before using version-sensitive APIs. Keep the generated Next.js guidance below intact; `next dev` refreshes that block.
 
 ## Verification
 
-- Run `npm run check` for lint, type, and formatting checks.
-- Run `npm run build` when a change affects application code or Next.js configuration.
-- Add or update focused tests when implementing behavior.
-- Keep the README and skills accurate when changing project conventions.
+- Run `npm test` for domain and mocked server-contract tests. Mocks do not verify live providers or SQL behavior.
+- Run `npm run check` for lint, type, formatting, and focused test checks.
+- Run `npm run build` after application or Next.js configuration changes.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

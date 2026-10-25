@@ -1,29 +1,54 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { connection } from "next/server";
+import { Suspense, type ReactNode } from "react";
+import { DemoWorkspaceProvider } from "@/lib/demo/workspace";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "EA Referral",
-  description: "A starter for a shareable LinkedIn referral assistant.",
+  title: "Referral desk | Personal workspace",
+  description:
+    "A personal referral request workspace with a session-only fictional demo.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+async function RequestScopedWorkspace({
+  children,
+  mode,
+}: {
+  children: ReactNode;
+  mode: "demo" | "connected";
+}) {
+  await connection();
+  const demoReferenceTime = new Date().toISOString();
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="flex min-h-full flex-col">{children}</body>
+    <DemoWorkspaceProvider mode={mode} demoReferenceTime={demoReferenceTime}>
+      {children}
+    </DemoWorkspaceProvider>
+  );
+}
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  const mode =
+    process.env.EA_REFERRAL_MODE === "demo" ||
+    process.env.EA_REFERRAL_MODE === undefined
+      ? "demo"
+      : "connected";
+  return (
+    <html lang="en" className="h-full antialiased">
+      <body className="min-h-full">
+        <Suspense
+          fallback={
+            <div className="min-h-screen bg-[#f7f8f5]" aria-busy="true">
+              <p className="sr-only" role="status">
+                Loading referral workspace
+              </p>
+            </div>
+          }
+        >
+          <RequestScopedWorkspace mode={mode}>
+            {children}
+          </RequestScopedWorkspace>
+        </Suspense>
+      </body>
     </html>
   );
 }

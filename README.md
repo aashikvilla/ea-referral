@@ -1,62 +1,54 @@
-# EA Referral
+# EA Referral Assistant
 
-A Next.js starter for a shareable LinkedIn referral assistant. This repository currently contains the framework scaffold and developer tooling; referral flows, accounts, storage, and LinkedIn integrations are intentionally unimplemented.
+EA Referral Assistant is an interactive demo of a fictional personal referral request workflow. In demo mode, candidate and owner screens use invented records held in per-tab memory. No request, resume file, status email, or EA referral is sent to an external service.
 
-## Stack
+The product requirements are recorded in [`docs/EA_Referral_Assistant_PRD.md`](docs/EA_Referral_Assistant_PRD.md). Current screen coverage and remaining demo gaps are tracked in [`docs/project-progress.md`](docs/project-progress.md).
 
-- Next.js 16 App Router and React 19
-- TypeScript with strict checking
-- Tailwind CSS 4
-- Turbopack for development
-- React Compiler
-- Cache Components with Partial Prefetching
-- ESLint and Prettier
+## Run locally
 
-React Compiler is enabled. Cache Components use explicit caching; user-specific data must never be placed in a shared cache.
-
-## Requirements
-
-- Node.js 20.9 or newer (`.nvmrc` selects Node 24)
-- npm
-
-## Getting started
+Requirements: Node.js 24 (selected by `.nvmrc`) and npm.
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open <http://localhost:3000>. All sample identities and contact details are fictional; example email domains use `.invalid`.
 
 ## Commands
 
 ```sh
 npm run dev          # Start the development server
+npm test             # Run domain unit tests with Node's test runner
 npm run lint         # Run ESLint
 npm run typecheck    # Run TypeScript checks
 npm run format       # Format supported files
 npm run format:check # Check formatting
-npm run check        # Lint, typecheck, and check formatting
+npm run check        # Lint, typecheck, check formatting, and run tests
 npm run build        # Build for production
 npm run start        # Serve the production build
 ```
 
-## Codex setup
+## Demo and connected-mode boundaries
 
-- [`AGENTS.md`](AGENTS.md) contains repository instructions and the official Next.js generated guidance.
-- [`.agents/skills/`](.agents/skills/) contains project skills for App Router work and referral data privacy.
-- [`.codex/agents/`](.codex/agents/) contains the Astra coordinator, focused Supabase/Vercel/Resend specialists, UI specialist, and read-only quality/security reviewers for local Codex clients.
+Demo mode supports local intake, review, status, and manual referral decision demonstrations. Connected-mode auth checks, repository methods, and APIs for uploads, validation, submission, status, and owner review are present. The migration is unapplied and provider accounts are not configured, so connected mode is not ready for real applicants. The following work is still missing or unverified:
 
-Project-level Codex configuration is loaded by local Codex clients when the repository is trusted. No provider credentials are checked in; configured environment values remain local or in the provider's secret manager.
+- **Authentication experience:** candidate email-code sign-in UI, OTP request/verify APIs, token validation, and configured-owner checks exist. Supabase Auth and OTP email delivery are not configured or integration-tested.
+- **Database:** server repository code and a Supabase migration exist, but the migration has not been applied or integration-tested. Demo records remain in per-tab memory.
+- **Application intake:** connected `POST /api/applications` validates a verified account, open job, slot, clean/readable resume, and supporting files before calling the submission RPC. The route and repository exist, but database behavior is not integration-tested and requires the unapplied migration.
+- **Storage:** connected private resume and optional supporting-file upload routes exist. They require configured Supabase storage and the unapplied bucket migration.
+- **Resume parsing:** connected code extracts text from supported text-based PDF and DOCX files and checks for first name, last name, email, and phone. PDF operator/font support is limited, so this is not a general PDF compatibility guarantee; OCR is not provided. Malware scanning stays quarantined unless a scanner endpoint returns a verified result. Resume replacement is limited to the candidate's own application for that job after the owner requests `correction_required`; the new version clears the previous assessment and returns for review.
+- **Candidate status:** authenticated status APIs and candidate sign-in UI exist. A separate emailed private status-link/access flow is unavailable; OTP delivery depends on Supabase Auth configuration.
+- **AI analysis:** any score or evidence summary is illustrative and rule-based; no model is called.
+- **Email:** no email sending implementation/provider call exists. No status link or notification is sent.
+- **Deployment:** no production deployment or provider configuration is included.
 
-## Integration setup
+Supabase groundwork includes server environment validation, token validation, sign-in UI/API, repository methods, application/file APIs, a placeholder `.env.example`, and SQL migrations. The environment file contains placeholders only, and the migration has not been applied. Mocked server-contract tests do not verify a live Supabase project, scanner, storage, or SQL execution.
 
-- Copy `.env.example` to `.env.local` for local development, then fill only values for services that have been selected and configured. Never commit `.env.local` or expose server-only keys to browser code.
-- Supabase integration uses a publishable key for browser-safe operations and a secret key only in server-only code. EA Referral tables and resume storage must use an `ea_referral_` prefix within the selected shared project.
-- Resend requires a sender domain verified in DNS before production candidate email can be sent. Use a sending-only key restricted to that domain.
-- Vercel AI Gateway supports project requests; use Vercel OIDC on Vercel and a local gateway key only for local development. Choose the model from the current gateway catalog before implementing analysis.
-- Vercel Git integration should deploy pull requests as previews and `main` as production. GitHub Actions run quality checks and do not deploy a second time.
+EA job references are fictional sample records. The app does not scrape EA or LinkedIn, access LinkedIn messages, or submit referrals to EA. The owner remains responsible for any real referral decision and portal submission.
 
-## Project scope
+## Repository guidance
 
-This is only the starter. Confirm product requirements before adding referral forms, personal data storage, authentication, email delivery, analytics, external services, or automated LinkedIn actions.
+- [`AGENTS.md`](AGENTS.md) contains the current product boundaries and engineering conventions, followed by generated Next.js guidance.
+- [`docs/project-progress.md`](docs/project-progress.md) maps PRD screens C01–C08 and A01–A08 to their current implementation status.
+- No service credentials or secrets belong in this repository.
