@@ -178,6 +178,14 @@ export type ActivityEvent = {
   applicationId?: string;
 };
 
+export type FunnelMetrics = {
+  verifiedRoleVisits: number;
+  intakeStarts: number;
+  quickChecksPassed: number;
+  requestsSubmitted: number;
+  referralsConfirmed: number;
+};
+
 export type ActionResult =
   { ok: true; message: string } | { ok: false; message: string };
 export type WorkspaceMode = "demo" | "connected";

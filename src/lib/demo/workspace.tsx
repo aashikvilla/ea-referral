@@ -22,6 +22,7 @@ import type {
   CreateApplicationInput,
   CreateJobInput,
   Job,
+  FunnelMetrics,
   ReferralSlot,
   UpdateApplicationInput,
   UpdateJobInput,
@@ -45,6 +46,7 @@ type WorkspaceData = {
   candidates: Candidate[];
   applications: Application[];
   activity: ActivityEvent[];
+  funnelMetrics: FunnelMetrics;
 };
 type SubmitResult = ActionResult & { applicationId?: string };
 type WorkspaceSnapshot = {
@@ -94,17 +96,26 @@ type WorkspaceContextValue = WorkspaceData & {
   resetDemo(): void;
 };
 
+const EMPTY_FUNNEL_METRICS: FunnelMetrics = {
+  verifiedRoleVisits: 0,
+  intakeStarts: 0,
+  quickChecksPassed: 0,
+  requestsSubmitted: 0,
+  referralsConfirmed: 0,
+};
 const initialData = (availabilityCheckedAt: string): WorkspaceData => ({
   jobs: getDemoJobsForSession(availabilityCheckedAt),
   candidates: demoCandidates,
   applications: demoApplications,
   activity: demoActivity,
+  funnelMetrics: EMPTY_FUNNEL_METRICS,
 });
 const emptyData = (): WorkspaceData => ({
   jobs: [],
   candidates: [],
   applications: [],
   activity: [],
+  funnelMetrics: EMPTY_FUNNEL_METRICS,
 });
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
@@ -210,6 +221,7 @@ function createWorkspaceStore(
           candidates: payload.candidates,
           applications: payload.applications,
           activity: payload.activity,
+          funnelMetrics: payload.funnelMetrics ?? EMPTY_FUNNEL_METRICS,
         };
         publish((current) => ({
           ...current,

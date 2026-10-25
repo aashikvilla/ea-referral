@@ -1,5 +1,5 @@
-import AdminWorkspace from "@/components/admin/admin-workspace";
+import NotificationReview from "@/components/admin/notification-review";
 
 export default function NotificationsPage() {
-  return <AdminWorkspace />;
+  return <NotificationReview />;
 }

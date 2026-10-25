@@ -8,13 +8,19 @@ import type {
   ReferralSlot,
   UpdateApplicationInput,
   UpdateJobInput,
+  FunnelMetrics,
 } from "@/lib/demo/types";
+import { createHmac } from "node:crypto";
 import "server-only";
 import { requireServerConfig } from "@/server/config";
 import { ApiError } from "@/server/http";
 import type {
   CandidateStatusSummary,
   DeletionRequestSummary,
+  FunnelEvent,
+  NewNotificationOutboxEntry,
+  NotificationOutboxEntry,
+  AssessmentAuditInput,
   ReferralRepository,
   ResumeRecord,
   ResumeRecordInput,
@@ -349,6 +355,26 @@ export class SupabaseReferralRepository implements ReferralRepository {
     requestId: string,
     actorId: string,
   ): Promise<void> {
+    const deletion = await this.rows(
+      `ea_referral_deletion_requests?select=auth_user_id&id=eq.${queryValue(requestId)}&status=eq.pending&limit=1`,
+    );
+    const candidateId = text(deletion[0]?.auth_user_id);
+    if (candidateId) {
+      const jobs = await this.rows("ea_referral_jobs?select=id");
+      const eventKeys = jobs
+        .map((job) => text(job.id))
+        .filter(Boolean)
+        .map((jobId) =>
+          createHmac("sha256", this.config.secretKey)
+            .update(`${candidateId}:${jobId}`)
+            .digest("hex"),
+        );
+      if (eventKeys.length)
+        await this.request(
+          `ea_referral_events?kind=in.(candidate_role_view,intake_started,quick_checks_passed)&session_key=in.(${eventKeys.map(queryValue).join(",")})`,
+          { method: "DELETE", headers: { Prefer: "return=minimal" } },
+        );
+    }
     await this.rpc("ea_referral_process_deletion", {
       p_request_id: requestId,
       p_actor_id: actorId,
@@ -545,32 +571,72 @@ export class SupabaseReferralRepository implements ReferralRepository {
   }
 
   async getWorkspace(): Promise<WorkspaceSnapshot> {
-    const [jobRows, candidateRows, applicationRows, eventRows, slotRows] =
-      await Promise.all([
-        this.rows("ea_referral_jobs?select=*&order=updated_at.desc"),
-        this.rows("ea_referral_candidates?select=*&order=created_at.desc"),
-        this.rows("ea_referral_applications?select=*&order=submitted_at.desc"),
-        this.rows(
-          "ea_referral_events?select=*&order=created_at.desc&limit=500",
-        ),
-        this.rows("ea_referral_slots?select=*&order=updated_at.desc"),
-      ]);
+    const [
+      jobRows,
+      candidateRows,
+      applicationRows,
+      eventRows,
+      slotRows,
+      funnelRows,
+    ] = await Promise.all([
+      this.rows("ea_referral_jobs?select=*&order=updated_at.desc"),
+      this.rows("ea_referral_candidates?select=*&order=created_at.desc"),
+      this.rows("ea_referral_applications?select=*&order=submitted_at.desc"),
+      this.rows("ea_referral_events?select=*&order=created_at.desc&limit=500"),
+      this.rows("ea_referral_slots?select=*&order=updated_at.desc"),
+      this.rows(
+        `ea_referral_events?select=kind,session_key,application_id,created_at&created_at=gte.${queryValue(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())}&kind=in.(candidate_role_view,intake_started,quick_checks_passed,application_submitted,referral_confirmed)&limit=10000`,
+      ),
+    ]);
+    const uniqueSessions = (kind: string) =>
+      new Set(
+        funnelRows
+          .filter(
+            (row) => row.kind === kind && typeof row.session_key === "string",
+          )
+          .map((row) => text(row.session_key)),
+      ).size;
+    const uniqueApplications = (kind: string) =>
+      new Set(
+        funnelRows
+          .filter(
+            (row) =>
+              row.kind === kind && typeof row.application_id === "string",
+          )
+          .map((row) => text(row.application_id)),
+      ).size;
+    const funnelMetrics: FunnelMetrics = {
+      verifiedRoleVisits: uniqueSessions("candidate_role_view"),
+      intakeStarts: uniqueSessions("intake_started"),
+      quickChecksPassed: uniqueSessions("quick_checks_passed"),
+      requestsSubmitted: uniqueApplications("application_submitted"),
+      referralsConfirmed: uniqueApplications("referral_confirmed"),
+    };
     return {
       jobs: jobRows.map(toJob),
       candidates: candidateRows.map(toCandidate),
       applications: applicationRows.map(toApplication),
-      activity: eventRows.map((row): ActivityEvent => ({
-        id: text(row.id),
-        at: text(row.created_at),
-        label: text(row.label),
-        detail: text(row.detail),
-        tone: text(row.tone, "neutral") as ActivityEvent["tone"],
-        jobId: typeof row.job_id === "string" ? row.job_id : undefined,
-        applicationId:
-          typeof row.application_id === "string"
-            ? row.application_id
-            : undefined,
-      })),
+      activity: eventRows
+        .filter(
+          (row) =>
+            ![
+              "candidate_role_view",
+              "intake_started",
+              "quick_checks_passed",
+            ].includes(text(row.kind)),
+        )
+        .map((row): ActivityEvent => ({
+          id: text(row.id),
+          at: text(row.created_at),
+          label: text(row.label),
+          detail: text(row.detail),
+          tone: text(row.tone, "neutral") as ActivityEvent["tone"],
+          jobId: typeof row.job_id === "string" ? row.job_id : undefined,
+          applicationId:
+            typeof row.application_id === "string"
+              ? row.application_id
+              : undefined,
+        })),
       slots: slotRows.map((row): ReferralSlot => ({
         jobId: text(row.job_id),
         status:
@@ -580,7 +646,42 @@ export class SupabaseReferralRepository implements ReferralRepository {
         applicationId: text(row.application_id) || undefined,
         updatedAt: text(row.updated_at),
       })),
+      funnelMetrics,
     };
+  }
+
+  async recordFunnelEvent(
+    event: FunnelEvent,
+    jobId: string,
+    candidateAuthUserId: string,
+  ): Promise<void> {
+    const eventKey = createHmac("sha256", this.config.secretKey)
+      .update(`${candidateAuthUserId}:${jobId}`)
+      .digest("hex");
+    const cutoff = new Date(
+      Date.now() - 30 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const existing = await this.rows(
+      `ea_referral_events?select=id&kind=eq.${queryValue(event)}&session_key=eq.${queryValue(eventKey)}&created_at=gte.${queryValue(cutoff)}&limit=1`,
+    );
+    if (existing.length) return;
+    const labels: Record<FunnelEvent, string> = {
+      candidate_role_view: "Verified candidate viewed a referral role",
+      intake_started: "Verified candidate started intake",
+      quick_checks_passed: "Candidate passed quick checks",
+    };
+    await this.request("ea_referral_events", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({
+        kind: event,
+        label: labels[event],
+        detail: "",
+        tone: "neutral",
+        job_id: jobId,
+        session_key: eventKey,
+      }),
+    });
   }
 
   async getApplicationsForJob(jobId: string): Promise<Application[]> {
@@ -651,6 +752,25 @@ export class SupabaseReferralRepository implements ReferralRepository {
         }),
       ),
     );
+  }
+
+  async recordAssessmentAudit(input: AssessmentAuditInput): Promise<void> {
+    await this.request("ea_referral_audit", {
+      method: "POST",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({
+        actor_user_id: input.actorId,
+        action: "assessment.completed",
+        job_id: input.jobId,
+        application_id: input.applicationId,
+        detail: {
+          modelId: input.modelId,
+          promptVersion: input.promptVersion,
+          schemaVersion: input.schemaVersion,
+          evidenceCoveragePercent: input.evidenceCoveragePercent,
+        },
+      }),
+    });
   }
 
   async decideApplication(
@@ -768,6 +888,98 @@ export class SupabaseReferralRepository implements ReferralRepository {
           ? { eligibility }
           : {}),
       };
+    });
+  }
+
+  async listNotificationOutbox(
+    idempotencyKeys: string[],
+  ): Promise<NotificationOutboxEntry[]> {
+    if (!idempotencyKeys.length) return [];
+    const rows = await this.rows(
+      `ea_referral_outbox?select=id,idempotency_key,status,payload&idempotency_key=in.(${idempotencyKeys.map(queryValue).join(",")})`,
+    );
+    return rows.flatMap((row) => {
+      const status = text(row.status);
+      if (
+        typeof row.id !== "string" ||
+        typeof row.idempotency_key !== "string" ||
+        !["pending", "sending", "sent", "failed", "cancelled"].includes(status)
+      )
+        return [];
+      return [
+        {
+          id: row.id,
+          idempotencyKey: row.idempotency_key,
+          status: status as NotificationOutboxEntry["status"],
+          payload: obj(row.payload),
+        },
+      ];
+    });
+  }
+
+  async enqueueNotifications(
+    entries: NewNotificationOutboxEntry[],
+  ): Promise<void> {
+    if (!entries.length) return;
+    await this.request("ea_referral_outbox?on_conflict=idempotency_key", {
+      method: "POST",
+      headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
+      body: JSON.stringify(
+        entries.map((entry) => ({
+          idempotency_key: entry.idempotencyKey,
+          recipient_user_id: null,
+          recipient_email: entry.recipientEmail,
+          template: entry.template,
+          payload: entry.payload,
+        })),
+      ),
+    });
+  }
+
+  async claimNotification(id: string): Promise<boolean> {
+    const value = await this.request(
+      `ea_referral_outbox?id=eq.${queryValue(id)}&status=in.(pending,failed)`,
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          status: "sending",
+          available_at: new Date().toISOString(),
+        }),
+      },
+    );
+    if (Array.isArray(value) && value.length === 1) return true;
+
+    // A process can stop after claiming a row. `available_at` is the lease
+    // timestamp while sending, so a later approved retry can reclaim a stale
+    // claim. Provider requests have a shorter timeout than this lease and use
+    // the same Resend idempotency key.
+    const staleBefore = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    const stale = await this.request(
+      `ea_referral_outbox?id=eq.${queryValue(id)}&status=eq.sending&available_at=lt.${queryValue(staleBefore)}`,
+      {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          status: "sending",
+          available_at: new Date().toISOString(),
+        }),
+      },
+    );
+    return Array.isArray(stale) && stale.length === 1;
+  }
+
+  async updateNotificationStatus(
+    id: string,
+    status: "sent" | "failed",
+  ): Promise<void> {
+    await this.request(`ea_referral_outbox?id=eq.${queryValue(id)}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({
+        status,
+        ...(status === "sent" ? { sent_at: new Date().toISOString() } : {}),
+      }),
     });
   }
 

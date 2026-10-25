@@ -19,6 +19,7 @@ import type {
 } from "@/lib/demo/types";
 import { checkEligibility } from "@/lib/domain/eligibility";
 import { isIntakeAvailable } from "@/lib/domain/slots";
+import type { AssessmentResult } from "@/server/assessment";
 
 const card =
   "rounded-2xl border border-[#dce5df] bg-white shadow-[0_3px_12px_rgba(24,56,47,0.035)]";
@@ -324,7 +325,8 @@ function AppRow({
 }
 
 function Dashboard() {
-  const { jobs, candidates, applications, activity, mode } = useWorkspace();
+  const { jobs, candidates, applications, activity, mode, funnelMetrics } =
+    useWorkspace();
   const pending = applications.filter(
     (a) =>
       !["referral_confirmed", "not_selected", "slot_filled_other"].includes(
@@ -369,21 +371,21 @@ function Dashboard() {
       )}
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric
-          label="Visitors"
-          value={mode === "demo" ? "126" : "Unavailable"}
+          label="Verified role visits"
+          value={mode === "demo" ? "126" : funnelMetrics.verifiedRoleVisits}
           note={
             mode === "demo"
               ? "Illustrative sample · 30 days"
-              : "Visitor analytics are not connected"
+              : "Unique verified candidate and role pairs · 30 days"
           }
         />
         <Metric
           label="Intake starters"
-          value={mode === "demo" ? "38" : "Unavailable"}
+          value={mode === "demo" ? "38" : funnelMetrics.intakeStarts}
           note={
             mode === "demo"
               ? "Illustrative sample · 30% of visitors"
-              : "Intake funnel analytics are not connected"
+              : "Unique verified candidate and role pairs · 30 days"
           }
         />
         <Metric
@@ -406,47 +408,81 @@ function Dashboard() {
               <span className="text-xs text-[#87938c]">
                 Illustrative sample · 30 days
               </span>
-            ) : undefined
+            ) : (
+              <span className="text-xs text-[#87938c]">Rolling 30 days</span>
+            )
           }
         >
-          {mode === "demo" ? (
-            <div className="space-y-4">
-              {[
-                { name: "Visited referral link", value: 126, percent: 100 },
-                { name: "Started intake", value: 38, percent: 30 },
-                { name: "Passed quick checks", value: 24, percent: 19 },
-                {
-                  name: "Submitted request",
-                  value: applications.length,
-                  percent: 13,
-                },
-                {
-                  name: "Referred manually",
-                  value: referred.length,
-                  percent: 4,
-                },
-              ].map((row) => (
-                <div key={row.name}>
-                  <div className="mb-1.5 flex justify-between text-xs">
-                    <span className="text-[#63736a]">{row.name}</span>
-                    <span className="font-semibold text-[#395d4d]">
-                      {row.value}
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full bg-[#edf2ee]">
-                    <div
-                      className="h-full rounded-full bg-[#61927a]"
-                      style={{ width: `${row.percent}%` }}
-                    />
-                  </div>
+          <div className="space-y-4">
+            {(mode === "demo"
+              ? [
+                  { name: "Visited referral link", value: 126, percent: 100 },
+                  { name: "Started intake", value: 38, percent: 30 },
+                  { name: "Passed quick checks", value: 24, percent: 19 },
+                  {
+                    name: "Submitted request",
+                    value: applications.length,
+                    percent: 13,
+                  },
+                  {
+                    name: "Referred manually",
+                    value: referred.length,
+                    percent: 4,
+                  },
+                ]
+              : [
+                  {
+                    name: "Verified role visits",
+                    value: funnelMetrics.verifiedRoleVisits,
+                  },
+                  { name: "Started intake", value: funnelMetrics.intakeStarts },
+                  {
+                    name: "Passed quick checks",
+                    value: funnelMetrics.quickChecksPassed,
+                  },
+                  {
+                    name: "Submitted request",
+                    value: funnelMetrics.requestsSubmitted,
+                  },
+                  {
+                    name: "Referral confirmed manually",
+                    value: funnelMetrics.referralsConfirmed,
+                  },
+                ].map((row) => ({
+                  ...row,
+                  percent:
+                    funnelMetrics.verifiedRoleVisits > 0
+                      ? Math.min(
+                          100,
+                          Math.round(
+                            (row.value / funnelMetrics.verifiedRoleVisits) *
+                              100,
+                          ),
+                        )
+                      : 0,
+                }))
+            ).map((row) => (
+              <div key={row.name}>
+                <div className="mb-1.5 flex justify-between text-xs">
+                  <span className="text-[#63736a]">{row.name}</span>
+                  <span className="font-semibold text-[#395d4d]">
+                    {row.value}
+                  </span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <Notice warning>
-              Visitor and intake-stage analytics are unavailable in connected
-              mode. Request counts below come from the verified workspace data.
-            </Notice>
+                <div className="h-2 rounded-full bg-[#edf2ee]">
+                  <div
+                    className="h-full rounded-full bg-[#61927a]"
+                    style={{ width: `${row.percent}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          {mode === "connected" && (
+            <p className="mt-4 border-t border-[#edf1ee] pt-3 text-xs leading-5 text-[#89958e]">
+              Funnel counts reflect verified candidate and role pairs. A person
+              who visits more than one role is counted once for each role.
+            </p>
           )}
           {mode === "demo" && (
             <p className="mt-4 border-t border-[#edf1ee] pt-3 text-xs leading-5 text-[#89958e]">
@@ -1858,6 +1894,8 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
     app?.fitNote ?? app?.matchSummary ?? "",
   );
   const [message, setMessage] = useState("");
+  const [assessment, setAssessment] = useState<AssessmentResult | null>(null);
+  const [assessmentBusy, setAssessmentBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [copied, setCopied] = useState("");
   if (!app || !candidate || !job)
@@ -1929,6 +1967,40 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
   async function saveFitNote() {
     const result = await updateApplication(currentApp.id, { fitNote });
     setMessage(result.message);
+  }
+  async function runAssessment() {
+    setAssessmentBusy(true);
+    setAssessment(null);
+    try {
+      const response = await fetch("/api/admin/assessments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: currentApp.id }),
+      });
+      const result = (await response.json()) as AssessmentResult;
+      if (!response.ok) {
+        setMessage(
+          "The advisory assessment could not be run. Owner review remains available.",
+        );
+      } else {
+        setAssessment(result);
+        if (result.status === "available")
+          setFitNote(result.assessment.summary);
+        setMessage(
+          result.status === "available"
+            ? "Advisory evidence assessment ready. Review each citation before use."
+            : result.reason === "not_configured"
+              ? "AI assessment is not configured. Owner review remains available."
+              : "AI assessment is unavailable. Owner review remains available.",
+        );
+      }
+    } catch {
+      setMessage(
+        "The advisory assessment could not be run. Owner review remains available.",
+      );
+    } finally {
+      setAssessmentBusy(false);
+    }
   }
   const warnings = [
     !app.resumeReady && "Resume contact fields need correction",
@@ -2088,8 +2160,68 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
             <p className="text-xs leading-5 text-[#87938c]">
               {mode === "demo"
                 ? "This editable summary uses the sample evidence below. Verify it yourself; the demo does not generate AI content."
-                : "This editable summary is based on the evidence shown below. Verify it yourself; no AI assessment is generated."}
+                : "This editable summary is advisory. You can request an AI evidence assessment; you remain responsible for reviewing every claim and citation."}
             </p>
+            {mode === "connected" && (
+              <div className="mt-3 rounded-xl bg-[#f7faf7] p-3 text-xs leading-5 text-[#687a70]">
+                Running an assessment sends the resume text and job description
+                to the configured AI Gateway after email, phone, and candidate
+                name are redacted. The request runs only when you select the
+                button below.
+              </div>
+            )}
+            {mode === "connected" && (
+              <button
+                className={`${secondary} mt-3`}
+                disabled={assessmentBusy || !app.resumeReady}
+                onClick={runAssessment}
+              >
+                {assessmentBusy
+                  ? "Assessing evidence…"
+                  : "Run advisory assessment"}
+              </button>
+            )}
+            {assessment?.status === "available" && (
+              <div className="mt-4 rounded-xl border border-[#dce5df] p-4">
+                <p className="text-sm font-semibold text-[#355447]">
+                  {assessment.evidenceCoveragePercent}% evidence coverage
+                </p>
+                <p className="mt-1 text-xs leading-5 text-[#748279]">
+                  Deterministic coverage heuristic; not a hiring or referral
+                  probability. The owner makes every decision.
+                </p>
+                <p className="mt-3 text-xs text-[#849188]">
+                  Model {assessment.audit.returnedModel} · prompt{" "}
+                  {assessment.audit.promptVersion} ·{" "}
+                  {new Date(assessment.audit.completedAt).toLocaleString()}
+                </p>
+                <div className="mt-3 space-y-3 border-t border-[#edf1ee] pt-3">
+                  {assessment.assessment.criteria.map((criterion, index) => (
+                    <div
+                      key={`${criterion.category}-${index}`}
+                      className="text-xs leading-5 text-[#617269]"
+                    >
+                      <p className="font-semibold text-[#385448]">
+                        {titleCase(criterion.category)} ·{" "}
+                        {titleCase(criterion.level)} · {criterion.criterion}
+                      </p>
+                      <p>{criterion.rationale}</p>
+                      {criterion.citations.map((citation, citationIndex) => (
+                        <blockquote
+                          key={`${citation.source}-${citation.start}-${citationIndex}`}
+                          className="mt-1 border-l-2 border-[#b5cfbe] pl-2 text-[#75847b]"
+                        >
+                          {citation.source === "resume"
+                            ? "Resume"
+                            : "Job description"}
+                          : “{citation.quote}”
+                        </blockquote>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <textarea
               className={`${input} mt-3 min-h-32`}
               aria-label="Editable fit summary"

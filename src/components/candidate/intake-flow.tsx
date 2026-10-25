@@ -2,6 +2,7 @@
 
 import {
   useState,
+  useEffect,
   type ChangeEvent,
   type FormEvent,
   type ReactNode,
@@ -84,6 +85,16 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
     relationship: "professional_network" as Relationship,
   });
   const heardFrom = "EA's Public Career Page";
+
+  useEffect(() => {
+    if (mode !== "connected" || !session?.user?.id || !job) return;
+    void fetch("/api/analytics/intake", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ jobId: job.id, event: "candidate_role_view" }),
+    }).catch(() => undefined);
+  }, [job, mode, session?.user?.id]);
 
   const totalExtras = extraFiles.reduce((sum, file) => sum + file.size, 0);
   const badFields = useSample
@@ -313,9 +324,18 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
     return Object.values(eligibilityAnswered).every(Boolean);
   }
   function advanceEligibility() {
+    if (!job) return;
     if (!canContinueEligibility()) {
       setError("Please answer each question to continue.");
       return;
+    }
+    if (mode === "connected") {
+      void fetch("/api/analytics/intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ jobId: job.id, event: "intake_started" }),
+      }).catch(() => undefined);
     }
     if (answers.previouslyReferred) {
       setStopReason("already_referred");
@@ -344,6 +364,18 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
       setStopReason("location_review");
       setStep("stopped");
       return;
+    }
+    if (mode === "connected") {
+      void fetch("/api/analytics/intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          jobId: job.id,
+          event: "quick_checks_passed",
+          eligibility: answers,
+        }),
+      }).catch(() => undefined);
     }
     setError("");
     setStep("details");

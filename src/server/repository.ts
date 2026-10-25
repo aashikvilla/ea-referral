@@ -6,6 +6,7 @@ import type {
   CreateApplicationInput,
   CreateJobInput,
   EligibilityAnswers,
+  FunnelMetrics,
   Job,
   ReferralSlot,
   UpdateApplicationInput,
@@ -18,7 +19,10 @@ export type WorkspaceSnapshot = {
   applications: Application[];
   activity: ActivityEvent[];
   slots: ReferralSlot[];
+  funnelMetrics: FunnelMetrics;
 };
+export type FunnelEvent =
+  "candidate_role_view" | "intake_started" | "quick_checks_passed";
 export type CandidateStatusSummary = {
   id: string;
   jobId: string;
@@ -62,6 +66,30 @@ export type DeletionRequestSummary = {
   requestedAt: string;
   status: "pending" | "completed" | "rejected";
   completedAt: string | null;
+};
+
+export type NotificationOutboxEntry = {
+  id: string;
+  idempotencyKey: string;
+  status: "pending" | "sending" | "sent" | "failed" | "cancelled";
+  payload: Record<string, unknown>;
+};
+
+export type NewNotificationOutboxEntry = {
+  idempotencyKey: string;
+  recipientEmail: string;
+  template: "referral_confirmed" | "slot_filled_other";
+  payload: Record<string, unknown>;
+};
+
+export type AssessmentAuditInput = {
+  actorId: string;
+  jobId: string;
+  applicationId: string;
+  modelId: string;
+  promptVersion: string;
+  schemaVersion: string;
+  evidenceCoveragePercent: number;
 };
 
 export interface ReferralRepository {
@@ -119,6 +147,7 @@ export interface ReferralRepository {
     input: UpdateApplicationInput,
     actorId: string,
   ): Promise<Application>;
+  recordAssessmentAudit(input: AssessmentAuditInput): Promise<void>;
   decideApplication(
     id: string,
     status: ApplicationStatus,
@@ -146,4 +175,18 @@ export interface ReferralRepository {
   listCandidateStatuses(
     candidateAuthUserId: string,
   ): Promise<CandidateStatusSummary[]>;
+  recordFunnelEvent(
+    event: FunnelEvent,
+    jobId: string,
+    candidateAuthUserId: string,
+  ): Promise<void>;
+  listNotificationOutbox(
+    idempotencyKeys: string[],
+  ): Promise<NotificationOutboxEntry[]>;
+  enqueueNotifications(entries: NewNotificationOutboxEntry[]): Promise<void>;
+  claimNotification(id: string): Promise<boolean>;
+  updateNotificationStatus(
+    id: string,
+    status: "sent" | "failed",
+  ): Promise<void>;
 }

@@ -38,6 +38,20 @@ export default function PrivacyPage() {
           </section>
           <section>
             <h2 className="text-xl font-semibold tracking-tight text-[#254a3d]">
+              Funnel measurement
+            </h2>
+            <p className="mt-3 leading-7 text-[#5f6f67]">
+              In connected mode, after you sign in, the service records when a
+              role is viewed, intake starts, and quick checks pass. These
+              records use a pseudonymous account-and-role key, contain no resume
+              or contact details, and are used for rolling 30-day aggregate
+              counts. A completed deletion request also removes these funnel
+              events. Submitted requests and manually confirmed referrals are
+              counted from their application records.
+            </p>
+          </section>
+          <section>
+            <h2 className="text-xl font-semibold tracking-tight text-[#254a3d]">
               Resume review
             </h2>
             <p className="mt-3 leading-7 text-[#5f6f67]">

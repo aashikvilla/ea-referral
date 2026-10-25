@@ -6,6 +6,7 @@ import { POST as processDeletion } from "../src/app/api/admin/deletion-requests/
 import { POST as submitApplication } from "../src/app/api/applications/route.ts";
 import { POST as validateResume } from "../src/app/api/resumes/[id]/validate/route.ts";
 import { POST as requestCandidateStatusAccess } from "../src/app/api/status/access/route.ts";
+import { POST as recordIntakeAnalytics } from "../src/app/api/analytics/intake/route.ts";
 import { createJobInput } from "../src/app/api/_lib.ts";
 import {
   ACCESS_COOKIE,
@@ -67,6 +68,174 @@ test("connected config is explicit; demo mode reports no authenticated session",
       isAdmin: false,
     },
   );
+});
+
+test("intake analytics require same-origin verified auth and reject invalid funnel claims", async () => {
+  configure();
+  const noToken = await recordIntakeAnalytics(
+    new Request("https://referral.example.invalid/api/analytics/intake", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://referral.example.invalid",
+      },
+      body: JSON.stringify({
+        jobId: "00000000-0000-4000-8000-000000000010",
+        event: "candidate_role_view",
+      }),
+    }),
+  );
+  assert.equal(noToken.status, 401);
+
+  globalThis.fetch = async () => {
+    throw new Error("Auth provider is unavailable in this contract test.");
+  };
+  const unauthenticated = await recordIntakeAnalytics(
+    new Request("https://referral.example.invalid/api/analytics/intake", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://referral.example.invalid",
+        authorization: "Bearer signed.jwt.token",
+      },
+      body: JSON.stringify({
+        jobId: "00000000-0000-4000-8000-000000000010",
+        event: "quick_checks_passed",
+        eligibility: {
+          previouslyApplied: true,
+          previouslyReferred: false,
+          knowsOwner: false,
+          inListedLocation: true,
+        },
+      }),
+    }),
+  );
+  assert.equal(unauthenticated.status, 503);
+});
+
+test("connected workspace funnel metrics count unique candidate-role keys for 30 days", async () => {
+  configure();
+  const samples = [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      { kind: "candidate_role_view", session_key: "visit-a" },
+      { kind: "candidate_role_view", session_key: "visit-a" },
+      { kind: "candidate_role_view", session_key: "visit-b" },
+      { kind: "intake_started", session_key: "visit-a" },
+      { kind: "quick_checks_passed", session_key: "visit-a" },
+      { kind: "quick_checks_passed", session_key: "visit-a" },
+      { kind: "application_submitted", application_id: "app-a" },
+      { kind: "referral_confirmed", application_id: "app-b" },
+    ],
+  ];
+  const calls = [];
+  globalThis.fetch = async (input) => {
+    calls.push(String(input));
+    const url = String(input);
+    const index = url.includes("session_key")
+      ? 5
+      : url.includes("ea_referral_slots?")
+        ? 4
+        : calls.length - 1;
+    return Response.json(samples[index] ?? []);
+  };
+  const workspace = await new SupabaseReferralRepository().getWorkspace();
+  assert.deepEqual(workspace.funnelMetrics, {
+    verifiedRoleVisits: 2,
+    intakeStarts: 1,
+    quickChecksPassed: 1,
+    requestsSubmitted: 1,
+    referralsConfirmed: 1,
+  });
+  const analyticsQuery = calls.find((url) =>
+    url.includes("ea_referral_events?select=kind"),
+  );
+  assert.match(analyticsQuery, /created_at=gte\./);
+  assert.match(analyticsQuery, /limit=10000/);
+});
+
+test("intake analytics only records eligible, verified candidate-role events", async () => {
+  configure();
+  const jobId = "00000000-0000-4000-8000-000000000010";
+  const jobRow = {
+    id: jobId,
+    canonical_job_id: "EA:508741",
+    title: "Gameplay Engineer",
+    team: "EA SPORTS",
+    location: "Vancouver, BC",
+    locations: ["Vancouver, BC"],
+    employment_type: "Full time",
+    official_url: "https://jobs.ea.com/en_US/careers/JobDetail/508741",
+    description: "Build game features.",
+    status: "open",
+    availability: "open",
+    availability_checked_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  const inserted = [];
+  globalThis.fetch = async (input, init = {}) => {
+    const url = String(input);
+    if (url.endsWith("/auth/v1/user"))
+      return Response.json({
+        id: OTHER_ID,
+        email: "candidate@example.invalid",
+        email_confirmed_at: "2026-10-24T00:00:00.000Z",
+      });
+    if (url.includes("ea_referral_jobs?")) return Response.json([jobRow]);
+    if (url.includes("ea_referral_slots?")) return Response.json([]);
+    if (url.includes("ea_referral_events?select=id")) return Response.json([]);
+    if (url.endsWith("/ea_referral_events") && init.method === "POST") {
+      inserted.push(JSON.parse(init.body));
+      return new Response(null, { status: 201 });
+    }
+    throw new Error(`Unexpected analytics request: ${url}`);
+  };
+
+  const rejected = await recordIntakeAnalytics(
+    new Request("https://referral.example.invalid/api/analytics/intake", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://referral.example.invalid",
+        authorization: "Bearer signed.jwt.token",
+      },
+      body: JSON.stringify({
+        jobId,
+        event: "quick_checks_passed",
+        eligibility: {
+          previouslyApplied: true,
+          previouslyReferred: false,
+          knowsOwner: false,
+          inListedLocation: true,
+        },
+      }),
+    }),
+  );
+  assert.equal(rejected.status, 400);
+  assert.equal(inserted.length, 0);
+
+  const accepted = await recordIntakeAnalytics(
+    new Request("https://referral.example.invalid/api/analytics/intake", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://referral.example.invalid",
+        authorization: "Bearer signed.jwt.token",
+      },
+      body: JSON.stringify({ jobId, event: "candidate_role_view" }),
+    }),
+  );
+  assert.equal(accepted.status, 200);
+  assert.equal(inserted.length, 1);
+  assert.equal(inserted[0].kind, "candidate_role_view");
+  assert.equal(inserted[0].job_id, jobId);
+  assert.match(inserted[0].session_key, /^[a-f0-9]{64}$/);
+  assert.equal(JSON.stringify(inserted[0]).includes(OTHER_ID), false);
 });
 
 test("missing access token is rejected without making an auth request", async () => {
@@ -391,6 +560,12 @@ test("owner deletion contract removes private storage before recording completio
       ]);
     if (url.endsWith("/storage/v1/object/ea_referral_resumes"))
       return new Response(null, { status: 200 });
+    if (url.includes("ea_referral_deletion_requests?"))
+      return Response.json([{ auth_user_id: OTHER_ID }]);
+    if (url.endsWith("/ea_referral_jobs?select=id"))
+      return Response.json([{ id: "00000000-0000-4000-8000-000000000010" }]);
+    if (url.includes("ea_referral_events?") && init.method === "DELETE")
+      return new Response(null, { status: 204 });
     if (url.endsWith("/rpc/ea_referral_process_deletion"))
       return Response.json({ ok: true });
     throw new Error(`Unexpected provider request: ${url}`);
