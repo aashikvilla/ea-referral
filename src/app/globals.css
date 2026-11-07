@@ -2,11 +2,13 @@
 
 :root {
   color-scheme: light;
-  --background: #f8f8f4;
-  --foreground: #202824;
-  --ink-muted: #69716d;
-  --teal: #145c54;
-  --line: #e7e8e2;
+  --background: #f7f9fc;
+  --foreground: #172338;
+  --ink-muted: #526174;
+  --cobalt: #2456c7;
+  --navy: #12233f;
+  --cyan: #37acd6;
+  --line: #dce5f0;
 }
 
 @theme inline {
@@ -32,19 +34,9 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-.title-depth {
-  color: #123f73;
-  text-shadow:
-    0 1px 0 #aac7e2,
-    0 2px 0 #7ea4c9,
-    0 3px 0 #4776a3,
-    0 9px 15px rgb(26 76 128 / 18%);
-  text-wrap: balance;
-}
-
 ::selection {
-  background: #cde8df;
-  color: #173f38;
+  background: #cfefff;
+  color: #12233f;
 }
 
 button,
@@ -56,12 +48,197 @@ textarea {
 input,
 select,
 textarea {
-  accent-color: var(--teal);
+  accent-color: var(--cobalt);
 }
 
 *:focus-visible {
-  outline: 2px solid #277b6e;
+  outline: 2px solid #347fda;
   outline-offset: 2px;
+}
+
+.guide-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #d5e4f4;
+  border-radius: 1.5rem;
+  background: #fff;
+  box-shadow: 0 18px 45px -36px rgb(30 74 125 / 35%);
+}
+
+.guide-card--stacked {
+  display: flex;
+  flex-direction: column;
+}
+
+.guide-card--compact {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+}
+
+.guide-card--hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 14rem;
+  align-items: end;
+  min-height: 19rem;
+  padding: 0 1.5rem 1.5rem;
+  background: linear-gradient(135deg, #eef8ff 0%, #deeffc 64%, #d5e8fb 100%);
+}
+
+.guide-card__art {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(145deg, #eaf5ff 0%, #dbeafa 100%);
+}
+
+.guide-card--stacked .guide-card__art {
+  height: 12rem;
+}
+
+.guide-card--compact .guide-card__art {
+  width: 7rem;
+  height: 7rem;
+  border-radius: 1.15rem;
+}
+
+.guide-card--hero .guide-card__art {
+  grid-column: 2;
+  grid-row: 1;
+  height: 19rem;
+  margin-right: -1.5rem;
+  background: transparent;
+}
+
+.guide-card__image {
+  position: absolute;
+  z-index: 1;
+  inset: auto 0 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  animation:
+    guide-arrive 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both,
+    guide-breathe 7s ease-in-out 700ms infinite alternate;
+}
+
+.guide-card__orbit {
+  position: absolute;
+  z-index: -1;
+  display: block;
+  border: 1px solid rgb(60 138 199 / 20%);
+  border-radius: 50%;
+}
+
+.guide-card__orbit--one {
+  width: 12rem;
+  height: 12rem;
+  top: 1rem;
+  left: calc(50% - 6rem);
+  background: rgb(255 255 255 / 26%);
+}
+
+.guide-card__orbit--two {
+  width: 17rem;
+  height: 17rem;
+  top: -1.5rem;
+  left: calc(50% - 8.5rem);
+  border-color: rgb(60 138 199 / 12%);
+}
+
+.guide-card__copy {
+  position: relative;
+  z-index: 2;
+  padding: 1.25rem 1.4rem 1.4rem;
+}
+
+.guide-card--compact .guide-card__copy {
+  min-width: 0;
+  padding: 0.5rem 0.25rem 0.5rem 0;
+}
+
+.guide-card--hero .guide-card__copy {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  padding: 1rem 0 1.25rem;
+}
+
+.guide-card__eyebrow,
+.guide-card__label {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.guide-card__eyebrow {
+  color: #426182;
+}
+
+.guide-card__label {
+  margin-top: 0.7rem;
+  color: #1779a6;
+  letter-spacing: 0.1em;
+}
+
+.guide-card__title {
+  margin: 0.35rem 0 0;
+  color: #142b4b;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.3;
+}
+
+.guide-card--compact .guide-card__title {
+  font-size: 1rem;
+}
+
+.guide-card__message {
+  margin: 0.55rem 0 0;
+  color: #526174;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.guide-card--compact .guide-card__message {
+  font-size: 0.75rem;
+}
+
+.guide-card--hero .guide-card__title {
+  font-size: 1.35rem;
+}
+
+.guide-card--hero .guide-card__message {
+  max-width: 23rem;
+  font-size: 0.9rem;
+}
+
+@keyframes guide-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes guide-breathe {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-0.2rem);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -72,5 +249,31 @@ textarea {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .guide-card--hero {
+    grid-template-columns: minmax(0, 1fr) 8rem;
+    min-height: 15rem;
+    padding-inline: 1.1rem;
+    padding-bottom: 1.1rem;
+  }
+
+  .guide-card--hero .guide-card__art {
+    height: 15rem;
+    margin-right: -1.1rem;
+  }
+
+  .guide-card--hero .guide-card__copy {
+    padding-right: 0.5rem;
+  }
+
+  .guide-card--hero .guide-card__title {
+    font-size: 1.15rem;
+  }
+
+  .guide-card--hero .guide-card__message {
+    font-size: 0.78rem;
   }
 }

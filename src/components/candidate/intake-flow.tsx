@@ -19,6 +19,10 @@ import type {
   Job,
   Relationship,
 } from "@/lib/demo/types";
+import {
+  CandidateGuide,
+  type GuideMood,
+} from "@/components/candidate/candidate-guide";
 import { CandidateShell, DemoNotice, Eyebrow } from "./candidate-shell";
 
 type Step =
@@ -57,6 +61,7 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
   } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [showcaseChoice, setShowcaseChoice] = useState<"yes" | "no" | "">("");
+  const [returnToReview, setReturnToReview] = useState(false);
   const [note, setNote] = useState("");
   const [linksText, setLinksText] = useState("");
   const [extraFiles, setExtraFiles] = useState<(LocalFile & { id?: string })[]>(
@@ -84,7 +89,8 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
     currentTitle: "",
     relationship: "professional_network" as Relationship,
   });
-  const heardFrom = "EA's Public Career Page";
+  const heardFrom =
+    "Personal referral link · no EA source option is assumed in this preview";
 
   useEffect(() => {
     if (mode !== "connected" || !session?.user?.id || !job) return;
@@ -97,23 +103,24 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
   }, [job, mode, session?.user?.id]);
 
   const totalExtras = extraFiles.reduce((sum, file) => sum + file.size, 0);
-  const badFields = useSample
-    ? []
-    : ["first name", "last name", "email address", "phone number"];
+  const badFields =
+    !useSample && localResume
+      ? ["first name", "last name", "email address", "phone number"]
+      : [];
   if (mode === "connected" && !session?.user)
     return (
       <CandidateShell>
         <section className="mx-auto max-w-3xl px-5 py-16 sm:px-8">
           <Eyebrow>Verified candidate sign in</Eyebrow>
-          <h1 className="mt-4 font-serif text-4xl text-[#173d32]">
+          <h1 className="mt-4 font-serif text-4xl text-[#142b4b]">
             Sign in before sharing your details.
           </h1>
-          <p className="mt-4 max-w-2xl leading-7 text-[#52645d]">
+          <p className="mt-4 max-w-2xl leading-7 text-[#526174]">
             Your email must be verified so this request and its status can be
             linked to your private account.
           </p>
           <Link
-            className="mt-7 inline-flex rounded-full bg-[#173d32] px-5 py-3 text-sm font-semibold text-white"
+            className="mt-7 inline-flex rounded-full bg-[#142b4b] px-5 py-3 text-sm font-semibold text-white"
             href={`/sign-in?next=${encodeURIComponent(`/referral/${jobId}`)}`}
           >
             Verify your email
@@ -126,15 +133,15 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
       <CandidateShell>
         <div className="mx-auto max-w-3xl px-5 py-16 sm:px-8">
           <Eyebrow>Referral request</Eyebrow>
-          <h1 className="mt-4 font-serif text-4xl text-[#173d32]">
+          <h1 className="mt-4 font-serif text-4xl text-[#142b4b]">
             We couldn’t find that sample role.
           </h1>
-          <p className="mt-4 text-[#52645d]">
+          <p className="mt-4 text-[#526174]">
             Try opening the sample flow from the home page. This demo can’t look
             up live EA roles.
           </p>
           <Link
-            className="mt-7 inline-flex rounded-full bg-[#173d32] px-5 py-3 text-sm font-semibold text-white"
+            className="mt-7 inline-flex rounded-full bg-[#142b4b] px-5 py-3 text-sm font-semibold text-white"
             href="/"
           >
             Back home
@@ -166,6 +173,58 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
       : step === "stopped"
         ? 0
         : Math.max(10, Math.round(((stepIndex + 1) / 5) * 100));
+  const stepNames = [
+    "Quick checks",
+    "Your details",
+    "Resume",
+    "Optional extras",
+    "Review",
+  ];
+  const guideMood: GuideMood =
+    step === "complete"
+      ? "success"
+      : step === "stopped" || stopAtStart || unknown
+        ? "unavailable"
+        : step === "eligibility" || step === "resume" || step === "review"
+          ? "checking"
+          : "reassuring";
+  const guideContent: Record<Step, { title: string; message: string }> = {
+    eligibility: {
+      title: "A few straightforward checks.",
+      message:
+        "No contact details or resume are needed until the role and basic checks are clear.",
+    },
+    details: {
+      title: "Share only what the owner needs.",
+      message:
+        "The employee who shared this link reviews your request. Add your contact details so they know who it is from.",
+    },
+    resume: {
+      title: "Your resume is the main thing.",
+      message:
+        "Use the fictional sample to preview the demo. Extra notes and work samples are optional later.",
+    },
+    showcase: {
+      title: "A little more, only if you want.",
+      message:
+        "You can skip this step without penalty. Optional material does not change the evidence score.",
+    },
+    review: {
+      title: "Take a moment to check the details.",
+      message:
+        "Review your contact information and any optional material before you finish.",
+    },
+    complete: {
+      title: "Your preview is complete.",
+      message:
+        "The fictional request is available on this tab until it refreshes or closes. Nothing was sent to EA.",
+    },
+    stopped: {
+      title: "It’s okay to pause here.",
+      message:
+        "This preview cannot confirm your eligibility in this case. Ask the employee who shared the link before continuing.",
+    },
+  };
 
   function updateAnswer<K extends keyof EligibilityAnswers>(
     key: K,
@@ -415,11 +474,11 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
       );
       return;
     }
-    if (Array.from(note).length > 500) {
+    if (showcaseChoice === "yes" && Array.from(note).length > 500) {
       setError("Keep your note to 500 characters or fewer.");
       return;
     }
-    if (linksText.trim()) {
+    if (showcaseChoice === "yes" && linksText.trim()) {
       const invalid = linksText
         .split(/[\n,]/)
         .map((link) => link.trim())
@@ -437,10 +496,12 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
       }
     }
     setError("");
+    setReturnToReview(false);
     setStep("review");
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (uploading) return;
     if (mode === "connected") {
       if (
         !resumeId ||
@@ -527,101 +588,167 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
             }
           : undefined,
     };
-    const result = await submitApplication(input);
-    if (!result.ok) {
-      setError(result.message);
-      return;
+    setUploading(true);
+    try {
+      const result = await submitApplication(input);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      setSubmittedId(result.applicationId ?? "demo-request");
+      setStep("complete");
+      setError("");
+    } catch {
+      setError("The demo request could not be added. Please try again.");
+    } finally {
+      setUploading(false);
     }
-    setSubmittedId(result.applicationId ?? "demo-request");
-    setStep("complete");
-    setError("");
   }
 
   const eligibility = answers;
+  const showStepProgress =
+    stepIndex >= 0 &&
+    step !== "complete" &&
+    step !== "stopped" &&
+    !stopAtStart &&
+    !unknown;
   return (
     <CandidateShell>
-      <div className="mx-auto max-w-4xl px-5 pt-8 pb-10 sm:px-8 sm:pt-12">
-        <div className="mb-8 flex items-center justify-between gap-3 text-xs text-[#6e7c74]">
+      <div className="mx-auto max-w-6xl px-5 pt-6 pb-10 sm:px-8 sm:pt-10">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 text-xs text-[#637287]">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 hover:text-[#173d32]"
+            className="inline-flex items-center gap-2 font-medium hover:text-[#2456c7]"
           >
-            <span aria-hidden="true">←</span> Home
+            <span aria-hidden="true">←</span> The Open Door
           </Link>
-          <span>
-            APPLICATION PREVIEW <span className="mx-1">·</span>{" "}
+          <span className="rounded-full bg-[#edf6ff] px-3 py-1.5 font-bold tracking-wide text-[#32619c]">
+            {mode === "demo" ? "DEMO REQUEST" : "PERSONAL REQUEST"}
             {step === "complete"
-              ? "COMPLETE"
+              ? " · COMPLETE"
               : step === "stopped"
-                ? "CHECK RESULT"
-                : `STEP ${stepIndex + 1} OF 5`}
+                ? " · PAUSED"
+                : ""}
           </span>
         </div>
-        <div
-          className="h-1.5 overflow-hidden rounded-full bg-[#e2e8e3]"
-          aria-label={`Progress ${progress}%`}
-        >
-          <div
-            className="h-full rounded-full bg-[#4f806c] transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        {showStepProgress && (
+          <div className="rounded-2xl border border-[#dce5ef] bg-white px-4 py-4 shadow-[0_12px_35px_-30px_rgba(18,48,84,0.32)] sm:px-5">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <p className="font-semibold text-[#294c78]">
+                Step {stepIndex + 1} of 5{" "}
+                <span className="text-[#9db0c5 mx-1">·</span>{" "}
+                {stepNames[stepIndex]}
+              </p>
+              <p className="text-[#6a7d93]">{progress}% complete</p>
+            </div>
+            <div
+              className="h-1.5 overflow-hidden rounded-full bg-[#e5edf6]"
+              role="progressbar"
+              aria-label={`${stepNames[stepIndex]} progress`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
+            >
+              <div
+                className="h-full rounded-full bg-[#3475d6] transition-[width] duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <ol className="mt-3 grid grid-cols-5 gap-1 sm:gap-2">
+              {stepNames.map((name, index) => (
+                <li
+                  key={name}
+                  aria-current={index === stepIndex ? "step" : undefined}
+                  className={`min-w-0 text-[9px] leading-4 sm:text-[11px] ${index === stepIndex ? "font-bold text-[#2456c7]" : index < stepIndex ? "font-medium text-[#4f6d8d]" : "text-[#91a0b1]"}`}
+                >
+                  <span className="flex items-center gap-1.5 sm:gap-2">
+                    <span
+                      className={`grid size-5 shrink-0 place-items-center rounded-full text-[9px] ${index < stepIndex ? "bg-[#e2efff] text-[#2456c7]" : index === stepIndex ? "bg-[#2456c7] text-white" : "bg-[#eef2f7] text-[#7b8da3]"}`}
+                    >
+                      {index < stepIndex ? "✓" : index + 1}
+                    </span>
+                    <span className="truncate">{name}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+            {mode === "demo" && (
+              <p className="mt-3 border-t border-[#edf2f7] pt-3 text-[11px] leading-5 text-[#6a7d93]">
+                Your progress is kept in this tab only and clears when it
+                refreshes or closes.
+              </p>
+            )}
+          </div>
+        )}
         {stopAtStart ? (
-          <div className="mt-9 rounded-[1.5rem] border border-[#e9ddc7] bg-white p-6 sm:p-9">
-            <Eyebrow>Intake unavailable</Eyebrow>
-            <h1 className="mt-3 font-serif text-4xl text-[#173d32]">
-              This demo role can’t accept another request.
-            </h1>
-            <p className="mt-4 max-w-2xl leading-7 text-[#5c6d64]">
-              {slot?.status === "confirmed" || job.status === "referred"
-                ? "A referral has already been confirmed for this role in the sample data."
-                : slot?.status === "reserved" || job.status === "paused"
-                  ? "The sample intake is paused while a referral slot is reserved."
-                  : "The role is marked closed in this demo."}{" "}
-              No resume or personal details are requested here.
-            </p>
-            <div className="mt-6">
+          <div className="mt-7 grid gap-5 lg:grid-cols-[0.78fr_1.22fr] lg:items-stretch">
+            <CandidateGuide
+              mood="unavailable"
+              title="Let’s pause before personal details."
+              message="No resume or contact details are requested for this role in the preview."
+            />
+            <div className="rounded-[1.5rem] border border-[#dce5ef] bg-white p-6 sm:p-9">
+              <Eyebrow>Intake unavailable</Eyebrow>
+              <h1 className="mt-3 text-3xl leading-tight font-bold tracking-[-0.035em] text-[#142b4b] sm:text-4xl">
+                This preview role can’t accept another request.
+              </h1>
+              <p className="mt-4 max-w-2xl leading-7 text-[#526174]">
+                {slot?.status === "confirmed" || job.status === "referred"
+                  ? "A referral is already confirmed in this fictional example."
+                  : slot?.status === "reserved" || job.status === "paused"
+                    ? "This fictional intake is paused while a referral slot is reserved."
+                    : "This fictional listing is marked closed."}{" "}
+                This status comes from sample data; check the listing directly
+                for current information.
+              </p>
               <a
                 href={job.officialUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-sm font-semibold text-[#315b4c] underline underline-offset-4"
+                className="mt-6 inline-flex min-h-11 items-center rounded-full border border-[#c9d9ea] px-5 text-sm font-semibold text-[#2456c7] underline-offset-4 hover:bg-[#f3f8ff]"
               >
-                View the EA careers listing ↗
+                View the EA Careers listing ↗
               </a>
             </div>
           </div>
         ) : unknown ? (
-          <div className="mt-9 rounded-[1.5rem] border border-[#e9ddc7] bg-white p-6 sm:p-9">
-            <Eyebrow>Role status needs a check</Eyebrow>
-            <h1 className="mt-3 font-serif text-4xl text-[#173d32]">
-              I can’t verify this listing in the demo.
-            </h1>
-            <p className="mt-4 max-w-2xl leading-7 text-[#5c6d64]">
-              This does not mean the job is closed. The sample role is marked
-              unknown, and the live EA listing checker is not connected. Check
-              the listing directly or choose another sample role.
-            </p>
-            <a
-              className="mt-6 inline-flex min-h-11 items-center rounded-full bg-[#173d32] px-5 text-sm font-semibold text-white"
-              href={job.officialUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Check EA Careers ↗
-            </a>
+          <div className="mt-7 grid gap-5 lg:grid-cols-[0.78fr_1.22fr] lg:items-stretch">
+            <CandidateGuide
+              mood="unavailable"
+              title="We can’t verify this listing here."
+              message="That doesn’t mean the role is closed. A live role check isn’t connected in this preview."
+            />
+            <div className="rounded-[1.5rem] border border-[#dce5ef] bg-white p-6 sm:p-9">
+              <Eyebrow>Role status needs a check</Eyebrow>
+              <h1 className="mt-3 text-3xl leading-tight font-bold tracking-[-0.035em] text-[#142b4b] sm:text-4xl">
+                Check the listing directly before you continue.
+              </h1>
+              <p className="mt-4 max-w-2xl leading-7 text-[#526174]">
+                This sample role’s availability is unknown. The live EA listing
+                checker is not connected, so the preview won’t ask for your
+                personal information yet.
+              </p>
+              <a
+                className="mt-6 inline-flex min-h-11 items-center rounded-full bg-[#2456c7] px-5 text-sm font-semibold text-white transition hover:bg-[#1b46aa]"
+                href={job.officialUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Check EA Careers ↗
+              </a>
+            </div>
           </div>
         ) : (
           <>
-            <div className="mt-8 grid gap-7 lg:grid-cols-[minmax(0,1fr)_245px]">
-              <section>
+            <div className="mt-7 grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] lg:gap-7">
+              <section className="order-2 lg:order-1">
                 <div className="mb-5">
-                  <Eyebrow>PERSONAL REFERRAL REQUEST</Eyebrow>
-                  <h1 className="mt-2 font-serif text-4xl leading-tight tracking-[-0.035em] text-[#173d32] sm:text-[2.75rem]">
+                  <Eyebrow>Personal referral request</Eyebrow>
+                  <h1 className="mt-2 text-3xl leading-tight font-bold tracking-[-0.035em] text-[#142b4b] sm:text-[2.75rem]">
                     {stepHeading(step)}
                   </h1>
                 </div>
-                <div className="rounded-[1.5rem] border border-[#dce3dd] bg-white p-5 shadow-[0_20px_60px_-48px_rgba(23,61,50,0.3)] sm:p-8">
+                <div className="rounded-[1.5rem] border border-[#dce5ef] bg-white p-5 shadow-[0_20px_60px_-48px_rgba(18,48,84,0.3)] sm:p-8">
                   {step === "eligibility" && (
                     <EligibilityStep
                       answers={answers}
@@ -641,7 +768,15 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                       setCandidate={setCandidate}
                       connected={mode === "connected"}
                       verifiedEmail={session?.user?.email ?? ""}
-                      onBack={() => setStep("eligibility")}
+                      onBack={() => {
+                        if (returnToReview) {
+                          setReturnToReview(false);
+                          setStep("review");
+                        } else {
+                          setStep("eligibility");
+                        }
+                      }}
+                      backLabel={returnToReview ? "Back to review" : "Back"}
                       onNext={() => {
                         if (
                           !candidate.firstName.trim() ||
@@ -660,7 +795,12 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                           return;
                         }
                         setError("");
-                        setStep("resume");
+                        if (returnToReview) {
+                          setReturnToReview(false);
+                          setStep("review");
+                        } else {
+                          setStep("resume");
+                        }
                       }}
                     />
                   )}
@@ -696,7 +836,15 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                           files.filter((_, i) => i !== index),
                         )
                       }
-                      onBack={() => setStep("resume")}
+                      onBack={() => {
+                        if (returnToReview) {
+                          setReturnToReview(false);
+                          setStep("review");
+                        } else {
+                          setStep("resume");
+                        }
+                      }}
+                      backLabel={returnToReview ? "Back to review" : "Back"}
                       onNext={nextFromShowcase}
                     />
                   )}
@@ -717,7 +865,17 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                       links={linksText}
                       files={extraFiles}
                       heardFrom={heardFrom}
-                      onBack={() => setStep("showcase")}
+                      submitting={uploading}
+                      onEditDetails={() => {
+                        setError("");
+                        setReturnToReview(true);
+                        setStep("details");
+                      }}
+                      onEditShowcase={() => {
+                        setError("");
+                        setReturnToReview(true);
+                        setStep("showcase");
+                      }}
                       onSubmit={submit}
                     />
                   )}
@@ -738,41 +896,40 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                   )}
                 </div>
               </section>
-              <aside className="space-y-4">
-                <div className="rounded-2xl border border-[#dce3dd] bg-white p-5">
-                  <Eyebrow>THE ROLE</Eyebrow>
-                  <h2 className="mt-3 leading-6 font-semibold text-[#244a3d]">
+              <aside className="order-1 space-y-4 lg:order-2">
+                <CandidateGuide
+                  mood={guideMood}
+                  layout="compact"
+                  title={guideContent[step].title}
+                  message={guideContent[step].message}
+                />
+                <div className="rounded-2xl border border-[#dce5ef] bg-white p-5">
+                  <Eyebrow>The role</Eyebrow>
+                  <h2 className="mt-3 leading-6 font-semibold text-[#1b3b61]">
                     {job.title}
                   </h2>
-                  <p className="mt-1 text-sm text-[#6b7a72]">
+                  <p className="mt-1 text-sm text-[#60758b]">
                     {job.team} · {job.location}
                   </p>
-                  <div className="mt-4 border-t border-[#edf0ed] pt-4 text-xs leading-5 text-[#6f7d75]">
+                  <div className="mt-4 border-t border-[#edf2f7] pt-4 text-xs leading-5 text-[#687d94]">
                     <p>{job.canonicalJobId}</p>
                     <p className="mt-1">
-                      Listing status:{" "}
+                      Preview availability:{" "}
                       {job.availability === "open"
-                        ? "manually marked open in demo"
-                        : job.availability}
+                        ? "marked open"
+                        : job.availability === "closed"
+                          ? "marked closed"
+                          : "unknown"}
                     </p>
                   </div>
                   <a
-                    className="mt-3 inline-flex text-xs font-semibold text-[#315b4c] underline underline-offset-4"
+                    className="mt-3 inline-flex text-xs font-semibold text-[#2456c7] underline underline-offset-4"
                     href={job.officialUrl}
                     target="_blank"
                     rel="noreferrer"
                   >
                     Open official listing ↗
                   </a>
-                </div>
-                <div className="rounded-2xl bg-[#edf3ee] p-5">
-                  <p className="text-sm font-semibold text-[#315b4c]">
-                    Your resume is enough.
-                  </p>
-                  <p className="mt-2 text-xs leading-5 text-[#68776f]">
-                    Extra notes and supporting files are optional. You can skip
-                    them without penalty.
-                  </p>
                 </div>
               </aside>
             </div>
@@ -808,12 +965,12 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-medium text-[#304d41]">
+      <span className="mb-2 block text-sm font-medium text-[#2c4460]">
         {label}
       </span>
       {children}
       {hint && (
-        <span className="mt-1.5 block text-xs leading-5 text-[#77857e]">
+        <span className="mt-1.5 block text-xs leading-5 text-[#687d94]">
           {hint}
         </span>
       )}
@@ -821,7 +978,7 @@ function Field({
   );
 }
 const inputClass =
-  "min-h-11 w-full rounded-xl border border-[#ccd8d1] bg-[#fcfdfb] px-3.5 text-sm outline-none transition focus:border-[#4e7f6b] focus:ring-4 focus:ring-[#e5efe8]";
+  "min-h-11 w-full rounded-xl border border-[#cfdae8] bg-[#ffffff] px-3.5 text-sm outline-none transition focus:border-[#4981d4] focus:ring-4 focus:ring-[#e8f1ff]";
 function Choice({
   label,
   selected,
@@ -838,18 +995,18 @@ function Choice({
       type="button"
       aria-pressed={selected}
       onClick={onClick}
-      className={`w-full rounded-xl border px-4 py-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4e7f6b] ${selected ? "border-[#54826e] bg-[#edf5ef] ring-1 ring-[#54826e]" : "border-[#dce3dd] bg-white hover:border-[#a9beb1]"}`}
+      className={`w-full rounded-xl border px-4 py-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4981d4] ${selected ? "border-[#4a78cb] bg-[#eef5ff] ring-1 ring-[#4a78cb]" : "border-[#dce5ef] bg-white hover:border-[#97b5d2]"}`}
     >
       <span className="flex items-center gap-3">
         <span
-          className={`grid size-4 shrink-0 place-items-center rounded-full border ${selected ? "border-[#3e705b]" : "border-[#aebbb3]"}`}
+          className={`grid size-4 shrink-0 place-items-center rounded-full border ${selected ? "border-[#315cb1]" : "border-[#97b0ca]"}`}
         >
-          {selected && <span className="size-2 rounded-full bg-[#3e705b]" />}
+          {selected && <span className="size-2 rounded-full bg-[#315cb1]" />}
         </span>
-        <span className="text-sm font-medium text-[#304d41]">{label}</span>
+        <span className="text-sm font-medium text-[#2c4460]">{label}</span>
       </span>
       {description && (
-        <span className="mt-1 ml-7 block text-xs leading-5 text-[#78867f]">
+        <span className="mt-1 ml-7 block text-xs leading-5 text-[#687d94]">
           {description}
         </span>
       )}
@@ -868,12 +1025,12 @@ function ActionRow({
   nextLabel?: string;
 }) {
   return (
-    <div className="mt-7 flex flex-col-reverse gap-3 border-t border-[#edf0ed] pt-5 sm:flex-row sm:justify-between">
+    <div className="mt-7 flex flex-col-reverse gap-3 border-t border-[#edf2f7] pt-5 sm:flex-row sm:justify-between">
       {back ? (
         <button
           type="button"
           onClick={back}
-          className="min-h-11 rounded-full px-5 text-sm font-semibold text-[#607168] hover:bg-[#f4f7f4]"
+          className="min-h-11 rounded-full px-5 text-sm font-semibold text-[#526174] hover:bg-[#f1f6fc]"
         >
           {backLabel}
         </button>
@@ -884,7 +1041,7 @@ function ActionRow({
         <button
           type="button"
           onClick={next}
-          className="min-h-11 rounded-full bg-[#173d32] px-6 text-sm font-semibold text-white transition hover:bg-[#245445]"
+          className="min-h-11 rounded-full bg-[#142b4b] px-6 text-sm font-semibold text-white transition hover:bg-[#1b46aa]"
         >
           {nextLabel} <span aria-hidden="true">→</span>
         </button>
@@ -916,12 +1073,12 @@ function EligibilityStep({
   return (
     <div className="space-y-6">
       <DemoNotice>
-        This is a demo. We ask these before contact details or a resume. “Yes”
-        for a prior application or referral ends this sample flow based on the
-        sample policy.
+        These quick questions come before contact details or a resume. In this
+        preview, some answers pause the flow so you can see how it works; this
+        is not a statement of EA-wide hiring policy.
       </DemoNotice>
       <fieldset>
-        <legend className="mb-3 text-sm font-semibold text-[#304d41]">
+        <legend className="mb-3 text-sm font-semibold text-[#2c4460]">
           Have you already applied to EA for this role?
         </legend>
         <div className="grid gap-2 sm:grid-cols-3">
@@ -947,7 +1104,7 @@ function EligibilityStep({
         </div>
       </fieldset>
       <fieldset>
-        <legend className="mb-3 text-sm font-semibold text-[#304d41]">
+        <legend className="mb-3 text-sm font-semibold text-[#2c4460]">
           Have you already been referred for this role?
         </legend>
         <div className="grid gap-2 sm:grid-cols-3">
@@ -974,10 +1131,10 @@ function EligibilityStep({
         </div>
       </fieldset>
       <fieldset>
-        <legend className="mb-3 text-sm font-semibold text-[#304d41]">
+        <legend className="mb-3 text-sm font-semibold text-[#2c4460]">
           Are you located in one of the role’s listed locations?
         </legend>
-        <p className="mb-3 text-xs leading-5 text-[#77857e]">
+        <p className="mb-3 text-xs leading-5 text-[#687d94]">
           {job.locations.join(" · ")}
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
@@ -994,17 +1151,17 @@ function EligibilityStep({
         </div>
       </fieldset>
       <fieldset>
-        <legend className="mb-3 text-sm font-semibold text-[#304d41]">
-          Do you know me personally or have we worked together?
+        <legend className="mb-3 text-sm font-semibold text-[#2c4460]">
+          Have you met or worked with the employee who shared this link?
         </legend>
         <div className="grid gap-2 sm:grid-cols-2">
           <Choice
-            label="No, we haven’t"
+            label="No"
             selected={answered.knowsOwner && !answers.knowsOwner}
             onClick={() => updateAnswer("knowsOwner", false)}
           />
           <Choice
-            label="Yes, we know each other"
+            label="Yes"
             selected={answers.knowsOwner}
             onClick={() => updateAnswer("knowsOwner", true)}
           />
@@ -1020,6 +1177,7 @@ function DetailsStep({
   connected,
   verifiedEmail,
   onBack,
+  backLabel,
   onNext,
 }: {
   candidate: {
@@ -1036,6 +1194,7 @@ function DetailsStep({
   connected: boolean;
   verifiedEmail: string;
   onBack: () => void;
+  backLabel: string;
   onNext: () => void;
 }) {
   function field(key: keyof typeof candidate, value: string) {
@@ -1065,7 +1224,7 @@ function DetailsStep({
               relationship: "former_colleague",
             })
           }
-          className="mt-4 rounded-full border border-[#cbd8d1] px-4 py-2.5 text-xs font-semibold text-[#315b4c] hover:bg-[#f4f7f4]"
+          className="mt-4 rounded-full border border-[#c9d9ea] px-4 py-2.5 text-xs font-semibold text-[#2456c7] hover:bg-[#f1f6fc]"
         >
           Fill fictional sample details
         </button>
@@ -1150,18 +1309,18 @@ function DetailsStep({
         </Field>
         <div className="sm:col-span-2">
           <Field
-            label="How did you initially hear about this opportunity?"
-            hint="Only the confirmed source option is shown here."
+            label="Opportunity source"
+            hint="This flow starts from a personal referral link. The preview does not assume an option from EA’s form."
           >
             <div
-              className={`${inputClass} flex items-center text-sm text-[#52645d]`}
+              className={`${inputClass} flex items-center text-sm text-[#526174]`}
             >
-              EA&apos;s Public Career Page
+              Personal referral link · no source selection collected
             </div>
           </Field>
         </div>
       </div>
-      <ActionRow back={onBack} next={onNext} />
+      <ActionRow back={onBack} backLabel={backLabel} next={onNext} />
     </div>
   );
 }
@@ -1195,7 +1354,7 @@ function ResumeStep({
   const [showCorrection, setShowCorrection] = useState(false);
   return (
     <div>
-      <p className="text-sm leading-6 text-[#607168]">
+      <p className="text-sm leading-6 text-[#526174]">
         We need to be able to read your first name, last name, email, and phone
         from the resume itself. Typing those details above does not replace them
         in the document.
@@ -1207,33 +1366,33 @@ function ResumeStep({
             onClick={() => {
               setUseSample(true);
             }}
-            className={`w-full rounded-xl border p-4 text-left ${useSample ? "border-[#54826e] bg-[#edf5ef] ring-1 ring-[#54826e]" : "border-[#dce3dd] hover:border-[#a9beb1]"}`}
+            className={`w-full rounded-xl border p-4 text-left ${useSample ? "border-[#4a78cb] bg-[#eef5ff] ring-1 ring-[#4a78cb]" : "border-[#dce5ef] hover:border-[#97b5d2]"}`}
           >
             <span className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-[#304d41]">
+              <span className="text-sm font-semibold text-[#2c4460]">
                 Use fictional sample resume
               </span>
-              <span className="text-xs font-semibold text-[#55776a]">
+              <span className="text-xs font-semibold text-[#3f719d]">
                 DEMO ONLY
               </span>
             </span>
-            <span className="mt-1 block text-xs leading-5 text-[#77857e]">
+            <span className="mt-1 block text-xs leading-5 text-[#687d94]">
               Alex Rivera · sample file with all four text fields already
               readable
             </span>
           </button>
         )}
-        <label className="block cursor-pointer rounded-xl border border-dashed border-[#b9c9bf] p-4 transition hover:bg-[#f8faf8]">
-          <span className="block text-sm font-semibold text-[#304d41]">
+        <label className="block cursor-pointer rounded-xl border border-dashed border-[#a9c2dc] p-4 transition hover:bg-[#f6faff]">
+          <span className="block text-sm font-semibold text-[#2c4460]">
             Choose a resume file from this device
           </span>
-          <span className="mt-1 block text-xs leading-5 text-[#77857e]">
+          <span className="mt-1 block text-xs leading-5 text-[#687d94]">
             {connected
               ? "PDF or DOCX · up to 4 MiB · uploaded for a secure scan and text check"
               : "PDF or DOCX · Local preview only, up to 10 MiB"}
           </span>
           <input
-            className="mt-3 block w-full text-sm text-[#607168] file:mr-3 file:rounded-full file:border-0 file:bg-[#eaf1eb] file:px-4 file:py-2 file:text-xs file:font-semibold file:text-[#315b4c]"
+            className="mt-3 block w-full text-sm text-[#526174] file:mr-3 file:rounded-full file:border-0 file:bg-[#e8f1ff] file:px-4 file:py-2 file:text-xs file:font-semibold file:text-[#2456c7]"
             type="file"
             accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             onChange={onChoose}
@@ -1247,7 +1406,7 @@ function ResumeStep({
             setUseSample(false);
             setShowCorrection((current) => !current);
           }}
-          className="mt-4 text-xs font-semibold text-[#315b4c] underline decoration-[#a8b6af] underline-offset-4"
+          className="mt-4 text-xs font-semibold text-[#2456c7] underline decoration-[#a9bad0] underline-offset-4"
           aria-expanded={showCorrection}
         >
           Preview a resume correction example
@@ -1270,7 +1429,7 @@ function ResumeStep({
               setUseSample(true);
               setShowCorrection(false);
             }}
-            className="mt-3 min-h-10 rounded-full bg-[#173d32] px-4 text-xs font-semibold text-white"
+            className="mt-3 min-h-10 rounded-full bg-[#142b4b] px-4 text-xs font-semibold text-white"
           >
             Use the fictional corrected resume
           </button>
@@ -1279,7 +1438,7 @@ function ResumeStep({
       {connected ? (
         localResume && (
           <p
-            className={`mt-4 rounded-xl px-4 py-3 text-sm leading-6 ${readiness?.ready ? "border border-[#d6e5dc] bg-[#eef5f0] text-[#466558]" : "border border-[#efdfbe] bg-[#fbf5e8] text-[#735b2c]"}`}
+            className={`mt-4 rounded-xl px-4 py-3 text-sm leading-6 ${readiness?.ready ? "border border-[#d7e8f8] bg-[#eef7ff] text-[#3e5d7c]" : "border border-[#efdfbe] bg-[#fbf5e8] text-[#735b2c]"}`}
           >
             {uploading
               ? "Uploading and checking the resume…"
@@ -1293,7 +1452,7 @@ function ResumeStep({
           </p>
         )
       ) : useSample ? (
-        <p className="mt-4 rounded-xl border border-[#d6e5dc] bg-[#eef5f0] px-4 py-3 text-sm text-[#466558]">
+        <p className="mt-4 rounded-xl border border-[#d7e8f8] bg-[#eef7ff] px-4 py-3 text-sm text-[#3e5d7c]">
           Sample ready: Alex Rivera · sample_resume.pdf · Name, email and phone
           are readable in this fictional example.
         </p>
@@ -1308,8 +1467,9 @@ function ResumeStep({
         )
       )}
       {!connected && !useSample && badFields.length > 0 && (
-        <p className="mt-3 text-xs leading-5 text-[#77857e]">
-          Fields not parsed in this preview: {badFields.join(", ")}.
+        <p className="mt-3 text-xs leading-5 text-[#687d94]">
+          This preview cannot check these fields in a local file:{" "}
+          {badFields.join(", ")}.
         </p>
       )}
       <div className="mt-6">
@@ -1330,6 +1490,7 @@ function ShowcaseStep({
   total,
   onRemove,
   onBack,
+  backLabel,
   onNext,
   connected,
   uploading,
@@ -1345,15 +1506,16 @@ function ShowcaseStep({
   total: number;
   onRemove: (index: number) => void;
   onBack: () => void;
+  backLabel: string;
   onNext: () => void;
   connected: boolean;
   uploading: boolean;
 }) {
   return (
     <div>
-      <p className="max-w-xl text-sm leading-6 text-[#607168]">
-        Your resume is all I need. If you have a project or something else that
-        shows why you’re a good fit, you can add it here.
+      <p className="max-w-xl text-sm leading-6 text-[#526174]">
+        Your resume is the main item for review. Add a note or work sample only
+        if it helps explain your experience.
       </p>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <Choice
@@ -1368,9 +1530,9 @@ function ShowcaseStep({
         />
       </div>
       {choice === "yes" && (
-        <div className="mt-6 space-y-5 border-t border-[#edf0ed] pt-5">
+        <div className="mt-6 space-y-5 border-t border-[#edf2f7] pt-5">
           <Field
-            label="What would you like me to know?"
+            label="What would you like the employee to know?"
             hint="Optional · up to 500 characters"
           >
             <textarea
@@ -1380,7 +1542,7 @@ function ShowcaseStep({
               onChange={(event) => setNote(event.target.value)}
               placeholder="A project, your contribution, or a result you’re proud of…"
             />
-            <span className="mt-1 block text-right text-xs text-[#77857e]">
+            <span className="mt-1 block text-right text-xs text-[#687d94]">
               {Array.from(note).length}/500
             </span>
           </Field>
@@ -1404,7 +1566,7 @@ function ShowcaseStep({
             }
           >
             <input
-              className="block w-full text-sm text-[#607168] file:mr-3 file:rounded-full file:border-0 file:bg-[#eaf1eb] file:px-4 file:py-2 file:text-xs file:font-semibold file:text-[#315b4c]"
+              className="block w-full text-sm text-[#526174] file:mr-3 file:rounded-full file:border-0 file:bg-[#e8f1ff] file:px-4 file:py-2 file:text-xs file:font-semibold file:text-[#2456c7]"
               type="file"
               multiple
               accept={
@@ -1416,20 +1578,20 @@ function ShowcaseStep({
             />
           </Field>
           {connected && uploading && (
-            <p className="text-xs text-[#607168]" role="status">
+            <p className="text-xs text-[#526174]" role="status">
               Uploading and checking selected files…
             </p>
           )}
-          <div className="rounded-xl bg-[#f5f7f4] p-4">
+          <div className="rounded-xl bg-[#f1f6fc] p-4">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-medium text-[#52645d]">
+              <span className="font-medium text-[#526174]">
                 Supporting files selected
               </span>
               <span
                 className={
                   total > MAX_EXTRAS
                     ? "font-semibold text-red-700"
-                    : "text-[#6f7d75]"
+                    : "text-[#687d94]"
                 }
               >
                 {formatBytes(total)} / 10 MiB
@@ -1440,7 +1602,7 @@ function ShowcaseStep({
                 {files.map((file, index) => (
                   <li
                     key={`${file.name}-${index}`}
-                    className="flex items-center justify-between gap-3 text-xs text-[#65746b]"
+                    className="flex items-center justify-between gap-3 text-xs text-[#526174]"
                   >
                     <span className="truncate">
                       {file.name} · {formatBytes(file.size)}
@@ -1448,7 +1610,7 @@ function ShowcaseStep({
                     <button
                       type="button"
                       onClick={() => onRemove(index)}
-                      className="shrink-0 font-semibold text-[#55776a] underline underline-offset-2"
+                      className="shrink-0 font-semibold text-[#3f719d] underline underline-offset-2"
                     >
                       Remove
                     </button>
@@ -1456,12 +1618,12 @@ function ShowcaseStep({
                 ))}
               </ul>
             ) : (
-              <p className="mt-2 text-xs text-[#77857e]">No files chosen.</p>
+              <p className="mt-2 text-xs text-[#687d94]">No files chosen.</p>
             )}
           </div>
         </div>
       )}
-      <ActionRow back={onBack} next={onNext} />
+      <ActionRow back={onBack} backLabel={backLabel} next={onNext} />
     </div>
   );
 }
@@ -1475,8 +1637,10 @@ function ReviewStep({
   links,
   files,
   heardFrom,
-  onBack,
+  onEditDetails,
+  onEditShowcase,
   onSubmit,
+  submitting,
   connected,
   resumeFileName,
 }: {
@@ -1498,11 +1662,20 @@ function ReviewStep({
   links: string;
   files: LocalFile[];
   heardFrom: string;
-  onBack: () => void;
+  onEditDetails: () => void;
+  onEditShowcase: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  submitting: boolean;
   connected: boolean;
   resumeFileName: string;
 }) {
+  const relationship =
+    relationshipOptions.find(({ value }) => value === candidate.relationship)
+      ?.label ?? candidate.relationship;
+  const showcaseLinks = links
+    .split(/[\n,]/)
+    .map((link) => link.trim())
+    .filter(Boolean);
   return (
     <form onSubmit={onSubmit}>
       {!connected && (
@@ -1511,59 +1684,151 @@ function ReviewStep({
           browser demo; it does not upload your file or send an email.
         </DemoNotice>
       )}
-      <div className="mt-5 divide-y divide-[#edf0ed]">
-        <ReviewRow
-          label="Role"
-          value={`${job.title} · ${job.canonicalJobId}`}
-        />
-        <ReviewRow
-          label="Eligibility"
-          value={`Not previously applied: ${answers.previouslyApplied ? "No" : "Yes"} · Not previously referred: ${answers.previouslyReferred ? "No" : "Yes"} · Location: ${answers.inListedLocation ? "Yes" : "No"}`}
-        />
-        <ReviewRow
-          label="Name and email"
-          value={`${candidate.firstName || "—"} ${candidate.lastName} · ${candidate.email || "—"}`}
-        />
-        <ReviewRow
-          label="Resume"
-          value={
-            connected
-              ? `${resumeFileName || "Uploaded resume"} · server checked and ready`
-              : useSample
-                ? "Fictional sample resume · local readiness example"
-                : "No parsed resume"
-          }
-        />
-        <ReviewRow label="Heard about role" value={heardFrom} />
-        <ReviewRow
-          label="Optional showcase"
-          value={
-            choice === "yes"
-              ? `${note ? `${note.length} character note` : "No note"} · ${links.split(/[\n,]/).filter(Boolean).length} links · ${files.length} ${connected ? "uploaded files" : "local files"}`
-              : "Skipped"
-          }
-        />
+      <div className="mt-5 space-y-4">
+        <section className="rounded-2xl border border-[#e1e9f2] px-4 py-2 sm:px-5">
+          <div className="flex items-center justify-between gap-3 border-b border-[#edf2f7] py-3">
+            <h3 className="text-sm font-semibold text-[#1b3b61]">
+              Role and eligibility
+            </h3>
+          </div>
+          <dl className="divide-y divide-[#edf2f7]">
+            <ReviewRow
+              label="Role"
+              value={`${job.title} · ${job.canonicalJobId}`}
+            />
+            <ReviewRow
+              label="Previous activity"
+              value={`Applied: ${answers.previouslyApplied ? "Yes" : "No"} · Referred: ${answers.previouslyReferred ? "Yes" : "No"}`}
+            />
+            <ReviewRow
+              label="Location"
+              value={`${answers.inListedLocation ? "Within" : "Outside"} the listed locations`}
+            />
+            <ReviewRow
+              label="Prior connection"
+              value={
+                answers.knowsOwner
+                  ? "Have met or worked with the employee"
+                  : "No prior personal connection"
+              }
+            />
+            <ReviewRow
+              label="Resume"
+              value={
+                connected
+                  ? `${resumeFileName || "Uploaded resume"} · server checked and ready`
+                  : useSample
+                    ? "Fictional sample resume · local readiness example"
+                    : "No readable resume selected"
+              }
+            />
+          </dl>
+        </section>
+        <section className="rounded-2xl border border-[#e1e9f2] px-4 py-2 sm:px-5">
+          <div className="flex items-center justify-between gap-3 border-b border-[#edf2f7] py-3">
+            <h3 className="text-sm font-semibold text-[#1b3b61]">
+              Contact details
+            </h3>
+            <button
+              type="button"
+              onClick={onEditDetails}
+              className="shrink-0 text-xs font-semibold text-[#2456c7] underline underline-offset-4"
+            >
+              Edit details
+            </button>
+          </div>
+          <dl className="divide-y divide-[#edf2f7]">
+            <ReviewRow
+              label="Name and email"
+              value={`${candidate.firstName || "—"} ${candidate.lastName || ""} · ${candidate.email || "—"}`}
+            />
+            <ReviewRow
+              label="Phone"
+              value={candidate.phone || "Not provided"}
+            />
+            <ReviewRow
+              label="Country"
+              value={candidate.country || "Not provided"}
+            />
+            <ReviewRow label="Relationship" value={relationship} />
+            <ReviewRow
+              label="Current work"
+              value={
+                [candidate.currentTitle, candidate.currentCompany]
+                  .filter(Boolean)
+                  .join(" at ") || "Not provided"
+              }
+            />
+            <ReviewRow label="Opportunity source" value={heardFrom} />
+          </dl>
+        </section>
+        <section className="rounded-2xl border border-[#e1e9f2] px-4 py-2 sm:px-5">
+          <div className="flex items-center justify-between gap-3 border-b border-[#edf2f7] py-3">
+            <h3 className="text-sm font-semibold text-[#1b3b61]">
+              Optional material
+            </h3>
+            <button
+              type="button"
+              onClick={onEditShowcase}
+              className="shrink-0 text-xs font-semibold text-[#2456c7] underline underline-offset-4"
+            >
+              Edit optional material
+            </button>
+          </div>
+          <dl className="divide-y divide-[#edf2f7]">
+            <ReviewRow
+              label="Choice"
+              value={choice === "yes" ? "Optional material added" : "Skipped"}
+            />
+          </dl>
+          {choice === "yes" && (
+            <div className="space-y-3 border-t border-[#edf2f7] py-4 text-sm leading-6 text-[#405773]">
+              {note && <p className="whitespace-pre-wrap">{note}</p>}
+              {showcaseLinks.length > 0 && (
+                <ul className="list-inside list-disc space-y-1 break-all">
+                  {showcaseLinks.map((link) => (
+                    <li key={link}>{link}</li>
+                  ))}
+                </ul>
+              )}
+              {files.length > 0 && (
+                <ul className="space-y-1">
+                  {files.map((file, index) => (
+                    <li key={`${file.name}-${index}`}>
+                      {file.name} · {formatBytes(file.size)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {!note && showcaseLinks.length === 0 && files.length === 0 && (
+                <p>No note, links, or files added.</p>
+              )}
+              <p className="text-xs text-[#687d94]">
+                Optional material does not change the evidence coverage score.
+              </p>
+            </div>
+          )}
+        </section>
       </div>
-      <p className="mt-5 text-xs leading-5 text-[#77857e]">
-        I understand that a referral is not guaranteed and that this request
-        will be reviewed by the employee who shared the link.
+      <p className="mt-5 text-xs leading-5 text-[#687d94]">
+        The employee who shared the link reviews this request. A referral is
+        never guaranteed.
         {connected
-          ? " My uploaded resume and contact details will be stored for review."
-          : " In this demo, no real data is submitted."}
+          ? " Your contact details and resume are stored for that review."
+          : " This preview creates only a fictional in-tab request; nothing is sent to EA."}
       </p>
-      <div className="mt-7 flex flex-col-reverse gap-3 border-t border-[#edf0ed] pt-5 sm:flex-row sm:justify-between">
-        <button
-          type="button"
-          onClick={onBack}
-          className="min-h-11 rounded-full px-5 text-sm font-semibold text-[#607168] hover:bg-[#f4f7f4]"
-        >
-          Back
-        </button>
+      <div className="mt-7 flex flex-col-reverse gap-3 border-t border-[#edf2f7] pt-5 sm:flex-row sm:justify-between">
+        <span />
         <button
           type="submit"
-          className="min-h-11 rounded-full bg-[#173d32] px-6 text-sm font-semibold text-white transition hover:bg-[#245445]"
+          disabled={submitting}
+          className="min-h-11 rounded-full bg-[#2456c7] px-6 text-sm font-semibold text-white transition hover:bg-[#1b46aa] disabled:cursor-wait disabled:opacity-60"
         >
-          {connected ? "Submit request" : "Submit demo request"}{" "}
+          {submitting
+            ? "Submitting…"
+            : connected
+              ? "Submit personal request"
+              : "Create demo request"}{" "}
           <span aria-hidden="true">→</span>
         </button>
       </div>
@@ -1573,8 +1838,8 @@ function ReviewStep({
 function ReviewRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-1 py-3 sm:grid-cols-[150px_1fr] sm:gap-3">
-      <dt className="text-xs font-medium text-[#77857e]">{label}</dt>
-      <dd className="text-sm text-[#304d41]">{value}</dd>
+      <dt className="text-xs font-medium text-[#687d94]">{label}</dt>
+      <dd className="text-sm text-[#2c4460]">{value}</dd>
     </div>
   );
 }
@@ -1587,32 +1852,35 @@ function CompleteStep({
 }) {
   return (
     <div>
-      <span className="grid size-12 place-items-center rounded-full bg-[#e7f1e9] text-xl text-[#3e705b]">
+      <span className="grid size-12 place-items-center rounded-full bg-[#e8f4ff] text-xl text-[#2867bb]">
         ✓
       </span>
-      <p className="mt-5 text-sm leading-6 text-[#607168]">
+      <p className="mt-5 text-sm leading-6 text-[#526174]">
         {connected
           ? "Your request has been submitted for review. You have not applied to EA, and no referral has been submitted."
-          : "The fictional request has been added to this browser demo workspace. You have not applied to EA, and no referral was submitted."}
+          : "The fictional request has been added to this tab’s demo workspace. It has not been sent to EA, and no referral was submitted."}
       </p>
-      <div className="mt-5 rounded-xl bg-[#f5f7f4] p-4 text-sm">
-        <span className="text-xs text-[#77857e]">
+      <div className="mt-5 rounded-xl bg-[#f1f6fc] p-4 text-sm">
+        <span className="text-xs text-[#687d94]">
           {connected ? "REQUEST RECEIPT" : "DEMO RECEIPT"}
         </span>
-        <p className="mt-1 font-mono text-[#315b4c]">{submittedId}</p>
+        <p className="mt-1 font-mono text-[#2456c7]">{submittedId}</p>
       </div>
       {!connected && (
         <DemoNotice>
-          This demo cannot verify email or send a status link. No email was
-          sent. In a real service, a private link would be sent after
-          submission.
+          No email or status link was sent. This sample status can be viewed
+          from the receipt while you remain in this tab.
         </DemoNotice>
       )}
       <Link
-        href="/status"
-        className="mt-5 inline-flex min-h-11 items-center rounded-full border border-[#cbd8d1] px-5 text-sm font-semibold text-[#315b4c]"
+        href={
+          connected
+            ? "/status"
+            : `/status?applicationId=${encodeURIComponent(submittedId)}`
+        }
+        className="mt-5 inline-flex min-h-11 items-center rounded-full border border-[#c9d9ea] px-5 text-sm font-semibold text-[#2456c7]"
       >
-        Visit the private status page
+        {connected ? "Check request status" : "View this sample request"}
       </Link>
     </div>
   );
@@ -1621,50 +1889,40 @@ function StoppedStep({ reason }: { reason: StopReason }) {
   const messages: Record<StopReason, { title: string; body: string }> = {
     already_applied: {
       title: "You’ve already applied for this role.",
-      body: "The sample policy asks people who have already applied for this role to stop here. This demo rule is based on an example EA notice, not a statement of every current EA policy.",
+      body: "This preview pauses when someone has already applied for the role. That is a demo check, not a statement of EA-wide recruiting policy. If you’re unsure, ask the employee who shared the link.",
     },
     already_referred: {
       title: "You’ve already been referred for this role.",
-      body: "The sample policy asks people who have already been referred for this role to stop here. This demo rule is based on an example EA notice, not a statement of every current EA policy.",
+      body: "This preview pauses when someone has already been referred for the role. That is a demo check, not a statement of EA-wide recruiting policy. If you’re unsure, ask the employee who shared the link.",
     },
     eligibility_review: {
       title: "This needs an owner check.",
-      body: "You selected “I’m not sure” for a prior application or referral. This demo cannot verify your eligibility, so please ask the employee who shared the link before sending personal information.",
+      body: "You selected “I’m not sure” about a prior application or referral. This preview can’t verify your eligibility; ask the employee who shared the link before sharing personal information.",
     },
     known_person: {
-      title: "We know each other!",
-      body: "No need to fill this form. Just message me directly and I’ll take a look. This does not reserve a slot or promise a referral.",
+      title: "You already know the employee.",
+      body: "You can pause the form and reach out to the employee who shared the link through a contact method you already have. This preview does not reserve a slot or promise a referral.",
     },
     location_review: {
       title: "This needs an owner check.",
-      body: "The role locations may not match your location. The demo has no policy configured for this case, so this is not an automatic rejection. Please ask the employee who shared the link before sending personal information.",
+      body: "Your location may not match the locations listed for this role. This preview can’t decide how that applies; ask the employee who shared the link before sharing personal information.",
     },
   };
   return (
     <div>
-      <span className="grid size-12 place-items-center rounded-full bg-[#fbf1df] text-xl text-[#8a6d33]">
+      <span className="grid size-12 place-items-center rounded-full bg-[#eef6ff] text-xl text-[#3f719d]">
         i
       </span>
-      <h2 className="mt-5 text-xl font-semibold text-[#264b3e]">
+      <h2 className="mt-5 text-xl font-semibold text-[#1b3b61]">
         {messages[reason].title}
       </h2>
-      <p className="mt-3 text-sm leading-6 text-[#607168]">
+      <p className="mt-3 text-sm leading-6 text-[#526174]">
         {messages[reason].body}
       </p>
       {reason === "known_person" && (
-        <p className="mt-3 text-sm leading-6 text-[#607168]">
+        <p className="mt-3 text-sm leading-6 text-[#526174]">
           No resume or contact information was requested or saved.
         </p>
-      )}
-      {!["location_review", "eligibility_review"].includes(reason) && (
-        <a
-          href="https://www.linkedin.com/"
-          target="_blank"
-          rel="noreferrer"
-          className="mt-5 inline-flex min-h-11 items-center rounded-full border border-[#cbd8d1] px-5 text-sm font-semibold text-[#315b4c]"
-        >
-          Open LinkedIn ↗
-        </a>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CandidateGuide } from "@/components/candidate/candidate-guide";
 import { JobLookup } from "@/components/candidate/job-lookup";
 import {
   CandidateShell,
@@ -14,137 +15,143 @@ export default function Home() {
       : "connected";
   return (
     <CandidateShell>
-      <section className="mx-auto grid max-w-7xl gap-12 px-5 pt-8 pb-10 sm:px-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:gap-16 lg:pt-16 lg:pb-20">
-        <div>
-          <Eyebrow>A personal referral, made clearer</Eyebrow>
-          <h1 className="title-depth mt-5 max-w-3xl font-sans text-4xl leading-[1.04] font-extrabold tracking-[-0.045em] sm:text-6xl lg:text-[4.5rem]">
-            <span className="block">Check the role.</span>
-            <span className="block">Share your story.</span>
-            <span className="block">Know what’s next.</span>
+      <section className="mx-auto grid max-w-7xl gap-8 px-5 pt-5 pb-12 sm:px-8 sm:pt-8 lg:grid-cols-[0.96fr_1.04fr] lg:items-center lg:gap-14 lg:pt-10 lg:pb-16">
+        <div className="max-w-2xl py-5 lg:py-10">
+          <Eyebrow>The Open Door · Referral Assistant</Eyebrow>
+          <h1 className="mt-5 max-w-2xl text-4xl leading-[1.08] font-bold tracking-[-0.045em] text-balance text-[#142b4b] sm:text-6xl lg:text-[4.35rem]">
+            A clearer path to a personal referral.
           </h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-[#52645d]">
-            A personal referral request, guided from role check through owner
-            review. Share your resume if it’s a fit; there’s no pressure to add
-            more.
+          <p className="mt-6 max-w-xl text-base leading-7 text-[#526174] sm:text-lg sm:leading-8">
+            Check the role, share what matters, and follow each step with
+            confidence. The employee who shared the link reviews your request;
+            you decide what to include.
           </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/privacy"
-              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#cbd8d1] px-6 text-sm font-semibold text-[#315b4c] transition hover:bg-white"
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <a
+              href="#role-check"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#2456c7] px-6 text-sm font-semibold text-white shadow-[0_10px_22px_-14px_rgba(36,86,199,0.8)] transition hover:bg-[#1b46aa]"
             >
-              How your information is handled
-            </Link>
+              Check a role <span aria-hidden="true">→</span>
+            </a>
+            {mode === "demo" && (
+              <Link
+                href="/referral/job-508741"
+                className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#bfd3e9] bg-white px-5 text-sm font-semibold text-[#2352a3] transition hover:bg-[#f1f7ff]"
+              >
+                Try the sample request
+              </Link>
+            )}
           </div>
-          <p className="mt-5 text-xs leading-5 text-[#78877f]">
-            A referral is a personal recommendation, not a promise of an
-            interview or job.
+          <p className="mt-5 max-w-xl text-xs leading-5 text-[#637287]">
+            EA makes all hiring decisions. A referral can introduce your
+            experience; it never guarantees an interview or offer.
           </p>
+          {mode === "demo" && (
+            <p className="mt-2 text-xs font-medium text-[#426182]">
+              Independent preview · your progress clears when this tab refreshes
+              or closes.
+            </p>
+          )}
         </div>
-        <div className="relative">
-          <div className="absolute -top-8 -left-8 size-32 rounded-full bg-[#e4eee5] blur-2xl" />
-          <div className="relative rounded-[2rem] border border-[#dce3dd] bg-white p-5 shadow-[0_24px_70px_-48px_rgba(23,61,50,0.35)] sm:p-7">
-            <div className="flex items-start justify-between gap-4 border-b border-[#edf0ed] pb-5">
+
+        <div className="grid gap-4">
+          <CandidateGuide
+            mood="welcome"
+            layout="hero"
+            title="Take the next step with confidence."
+            message="Pip guides the steps. The employee who shared your link makes the referral decision."
+          />
+          <div
+            id="role-check"
+            className="scroll-mt-6 rounded-[1.6rem] border border-[#dce5ef] bg-white p-5 shadow-[0_22px_65px_-48px_rgba(18,48,84,0.32)] sm:p-7"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-[#edf2f7] pb-5">
               <div>
-                <Eyebrow>Referral request</Eyebrow>
-                <h2 className="mt-2 text-xl font-semibold tracking-tight">
-                  Start with a role
+                <Eyebrow>Start with the role</Eyebrow>
+                <h2 className="mt-2 text-xl font-semibold tracking-tight text-[#142b4b]">
+                  Check the listing first
                 </h2>
               </div>
-              <span className="rounded-full bg-[#eff5f0] px-3 py-1.5 text-[11px] font-semibold text-[#55776a]">
+              <span className="shrink-0 rounded-full bg-[#edf6ff] px-3 py-1.5 text-[10px] font-bold tracking-wide text-[#32619c] sm:text-[11px]">
                 ABOUT 3 MIN
               </span>
             </div>
-            <div className="mt-6 space-y-4">
+            <div className="mt-5 space-y-4">
               <JobLookup />
               {mode === "demo" && (
-                <div className="rounded-xl bg-[#f5f7f4] px-4 py-3">
-                  <p className="text-[11px] font-semibold tracking-[0.14em] text-[#71857a] uppercase">
-                    Try a fictional sample role
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium">
+                <div className="rounded-2xl border border-[#d8e7f7] bg-[#f2f8ff] p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-bold tracking-wide text-[#294c78] uppercase">
+                        Prefer a walkthrough?
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-[#607792]">
+                        Use a fictional role to preview the request steps.
+                      </p>
+                    </div>
                     <Link
                       href="/referral/job-508741"
-                      className="text-[#315b4c] underline decoration-[#b5c5bb] underline-offset-4"
+                      className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-full bg-[#2456c7] px-4 text-xs font-semibold text-white transition hover:bg-[#1b46aa]"
                     >
-                      Open intake
+                      Start sample request{" "}
+                      <span className="ml-2" aria-hidden="true">
+                        →
+                      </span>
                     </Link>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-[#dce9f7] pt-3 text-xs font-medium">
                     <Link
+                      className="text-[#315c95] underline underline-offset-4"
                       href="/referral/job-509182"
-                      className="text-[#315b4c] underline decoration-[#b5c5bb] underline-offset-4"
                     >
-                      Status unknown
+                      Preview unknown listing
                     </Link>
                     <Link
+                      className="text-[#315c95] underline underline-offset-4"
                       href="/referral/job-507316"
-                      className="text-[#315b4c] underline decoration-[#b5c5bb] underline-offset-4"
                     >
-                      Slot confirmed
+                      Preview confirmed referral
                     </Link>
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-[#f1f5f1] p-4">
-                  <span className="text-[11px] font-semibold tracking-wider text-[#698277] uppercase">
-                    First
-                  </span>
-                  <p className="mt-2 text-sm font-medium">Check the role</p>
-                  <p className="mt-1 text-xs leading-5 text-[#718078]">
-                    See whether this role can accept requests.
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-[#f1f5f1] p-4">
-                  <span className="text-[11px] font-semibold tracking-wider text-[#698277] uppercase">
-                    Then
-                  </span>
-                  <p className="mt-2 text-sm font-medium">Share your details</p>
-                  <p className="mt-1 text-xs leading-5 text-[#718078]">
-                    Upload a resume only after eligibility checks.
-                  </p>
-                </div>
-              </div>
               {mode === "demo" && (
                 <DemoNotice>
-                  Demo preview only. The lookup and application do not connect
-                  to EA or save information.
+                  This is a fictional browser preview. Role lookup and sample
+                  requests do not contact EA or leave this tab.
                 </DemoNotice>
               )}
             </div>
           </div>
-          <div className="relative mt-4 flex items-center gap-3 px-3 text-xs text-[#697971]">
-            <span className="grid size-8 place-items-center rounded-full bg-[#dfeae2] text-[#315b4c]">
-              ✳
-            </span>
-            <span>Keep it simple. Your resume is all that’s needed.</span>
-          </div>
         </div>
       </section>
-      <section className="border-y border-[#e0e6e1] bg-[#f0f3ed]">
-        <div className="mx-auto grid max-w-7xl gap-8 px-5 py-9 sm:px-8 md:grid-cols-3 md:gap-10">
+
+      <section className="border-y border-[#dce5ef] bg-[#eef4fb]">
+        <div className="mx-auto grid max-w-7xl gap-7 px-5 py-9 sm:px-8 md:grid-cols-3 md:gap-10 md:py-11">
           {[
             [
               "01",
-              "Check fit and availability",
-              "We check role details and basic eligibility before asking for personal information.",
+              "Check before you share",
+              "Role availability and a few basic questions come first, before contact details or a resume.",
             ],
             [
               "02",
-              "Share what matters",
-              "Add a resume for review. Optional work samples can help tell the story, but are never required.",
+              "Keep it focused",
+              "A resume supports the employee’s review. Extra notes or work samples are optional.",
             ],
             [
               "03",
-              "Hear back with clarity",
-              "In a configured service, sign in with your verified email to check your request status.",
+              "Know who decides",
+              "The employee who shared your link reviews your request. Only EA can make hiring decisions.",
             ],
-          ].map(([n, title, copy]) => (
-            <article key={n} className="flex gap-4">
-              <span className="pt-1 font-serif text-2xl text-[#789285]">
-                {n}
+          ].map(([number, title, copy]) => (
+            <article key={number} className="flex gap-4">
+              <span className="pt-0.5 text-sm font-bold tracking-wider text-[#398bb8]">
+                {number}
               </span>
               <div>
-                <h2 className="font-semibold text-[#264b3e]">{title}</h2>
-                <p className="mt-2 max-w-sm text-sm leading-6 text-[#66756e]">
+                <h2 className="font-semibold text-[#1c3d64]">{title}</h2>
+                <p className="mt-2 max-w-sm text-sm leading-6 text-[#5d7087]">
                   {copy}
                 </p>
               </div>

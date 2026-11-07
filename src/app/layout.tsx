@@ -5,9 +5,9 @@ import { DemoWorkspaceProvider } from "@/lib/demo/workspace";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Referral desk | Personal workspace",
+  title: "The Open Door | Referral Assistant",
   description:
-    "A personal referral request workspace with a session-only fictional demo.",
+    "An independent referral assistant preview with a session-only fictional demo.",
 };
 
 async function RequestScopedWorkspace({

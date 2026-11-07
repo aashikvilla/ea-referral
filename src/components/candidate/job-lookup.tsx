@@ -45,7 +45,7 @@ export function JobLookup() {
         </label>
         <input
           id="job-lookup"
-          className="min-h-12 min-w-0 flex-1 rounded-full border border-[#d4ded7] bg-white px-5 text-sm text-[#304d41] transition outline-none placeholder:text-[#929f98] focus:border-[#4e7f6b] focus:ring-4 focus:ring-[#e5efe8]"
+          className="min-h-12 min-w-0 flex-1 rounded-2xl border border-[#cfdae8] bg-white px-4 text-sm text-[#233a58] transition outline-none placeholder:text-[#8797aa] focus:border-[#4981d4] focus:ring-4 focus:ring-[#e8f1ff] sm:rounded-full sm:px-5"
           value={value}
           onChange={(event) => {
             setValue(event.target.value);
@@ -55,7 +55,7 @@ export function JobLookup() {
           inputMode="url"
         />
         <button
-          className="min-h-12 rounded-full bg-[#173d32] px-6 text-sm font-semibold text-white transition hover:bg-[#245445] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#173d32]"
+          className="min-h-12 rounded-2xl bg-[#2456c7] px-6 text-sm font-semibold text-white transition hover:bg-[#1b46aa] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2456c7] sm:rounded-full"
           type="submit"
         >
           Check role <span aria-hidden="true">→</span>
@@ -63,7 +63,7 @@ export function JobLookup() {
       </form>
       {message && (
         <p
-          className={`mt-3 rounded-xl px-4 py-3 text-xs leading-5 ${tone === "info" ? "bg-[#f0f3ed] text-[#586a60]" : "bg-[#fcf1ed] text-[#844936]"}`}
+          className={`mt-3 rounded-xl px-4 py-3 text-xs leading-5 ${tone === "info" ? "border border-[#d7e8f8] bg-[#f1f8ff] text-[#496681]" : "border border-[#f2d7d0] bg-[#fff6f3] text-[#844936]"}`}
           role="status"
         >
           {message}
