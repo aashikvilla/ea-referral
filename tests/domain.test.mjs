@@ -298,8 +298,8 @@ test("confirmed and reserved referrals close intake, and unknown job availabilit
     status: "selected_pending_submission",
   };
   assert.equal(getReferralSlot(openJob, [reserved]).status, "reserved");
-  assert.equal(isIntakeAvailable(openJob, [reserved]), false);
-  assert.equal(isIntakeAvailable(openJob, []), true);
+  assert.equal(isIntakeAvailable(openJob, [reserved], testNow), false);
+  assert.equal(isIntakeAvailable(openJob, [], testNow), true);
   assert.equal(isIntakeAvailable(openJob, [], testNow), true);
   assert.equal(
     isIntakeAvailable(
@@ -529,7 +529,10 @@ test("slot transitions reserve once, reject a competing reservation, then releas
     release.applications.find(({ id }) => id === candidateOne.id).status,
     "ready_for_review",
   );
-  assert.equal(isIntakeAvailable(release.job, release.applications), true);
+  assert.equal(
+    isIntakeAvailable(release.job, release.applications, testNow),
+    true,
+  );
 
   const reserveAgain = transitionReferralSlot(
     release.job,
