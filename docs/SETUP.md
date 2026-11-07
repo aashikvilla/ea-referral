@@ -1,6 +1,6 @@
 # Setup and deployment
 
-This guide connects the existing app to Supabase, a malware scanning service, and Vercel. The database migrations are applied; provider settings and Vercel deployment still need to be completed. Connected mode has database, authentication, upload, and owner review code, but it is not a complete applicant service: see [Current limits](#current-limits).
+This guide connects the existing app to Supabase, a malware scanning service, and Vercel. The database migrations are applied, and the GitHub repository is linked to the Vercel project. Connected mode has database, authentication, upload, and owner review code, but it is not a complete applicant service: see [Current limits](#current-limits).
 
 ## 1. Supabase project
 
@@ -25,7 +25,7 @@ The server reads these exact variables (`src/server/config.ts` and `src/server/f
 | `RESEND_API_KEY`           | Required for connected notification sends through Resend.                                                                                           |
 | `RESEND_FROM_EMAIL`        | Required sender address accepted by Resend; its domain must be verified with Resend first.                                                          |
 
-Set variables only after configuring the matching provider. In Vercel, use **Project → Settings → Environment Variables** and select the intended **Production**, **Preview**, and/or **Development** scope for each variable. Set `APP_ORIGIN` separately for each deployment origin. Keep all Supabase, scanner, AI Gateway, and Resend variables server-only: do not prefix them with `NEXT_PUBLIC_`. Use a separate Supabase project for Preview if preview deployments should not access production data.
+Set variables only after configuring the matching provider. In Vercel, use **Project → Settings → Environment Variables** and select the intended **Production**, **Preview**, and/or **Development** scope for each variable. Set `APP_ORIGIN` to the production origin and `http://localhost:3000` for local development. On Vercel, same-origin mutation checks also allow the exact generated deployment host from the platform's `VERCEL_URL`, so previews do not need a hard-coded per-deployment origin. Keep all Supabase, scanner, AI Gateway, and Resend variables server-only: do not prefix them with `NEXT_PUBLIC_`. Use a separate Supabase project for Preview if preview deployments should not access production data.
 
 For local work, copy `.env.example` to `.env.local`, replace its placeholders with actual values, and keep `EA_REFERRAL_MODE=demo` until the connected setup is ready. `.env.local` is ignored by Git. The placeholder values in `.env.example` do not enable connected mode.
 
@@ -121,12 +121,11 @@ The endpoint must return a successful HTTP status and a JSON response no larger 
 
 ## 3. Vercel and GitHub deployment
 
-1. In Vercel, choose **Add New → Project**, import the GitHub repository, and select `main` as the Production Branch.
-2. Keep the detected Next.js framework settings. The repository scripts provide `npm ci` for installation and `npm run build` for the production build; the production server uses `npm run start` if needed.
-3. Complete the Supabase OTP mail/redirect setup, scanner endpoint configuration, AI Gateway credential and model selection (if using advisory assessment), and Resend sender/domain/DNS setup (if using notification delivery).
-4. Add the production environment variables from the table above, including the production `APP_ORIGIN`, correct `ADMIN_USER_ID`, and only the configured provider credentials. Keep `EA_REFERRAL_MODE=demo` until live configuration and integration checks are complete.
-5. Deploy the initial commit. Add the resulting production origin to Supabase Authentication's Site URL/allowed URLs, then redeploy if environment variables changed.
-6. Vercel will create Preview deployments for GitHub branches and deploy commits merged or pushed to `main` as Production. Scope environment variables deliberately; a preview should not silently inherit production secrets or write to the production database.
+1. The Vercel project `ea-referral` is linked to GitHub repository `aashikvilla/ea-referral`; `main` is the production branch and Node 24 matches `.nvmrc` and GitHub Actions. Vercel uses the repository root and the detected Next.js build defaults.
+2. The verified production domain is `https://ea-referral.vercel.app`. `EA_REFERRAL_MODE=demo` is set for Production, Preview, and Development. `APP_ORIGIN` is set to the production domain for Production and `http://localhost:3000` for Development. Vercel's generated `VERCEL_URL` is also accepted for exact same-origin checks on Preview deployments.
+3. No Supabase, scanner, AI Gateway, or Resend key is required for the demo deployment. Keep connected integrations unset and keep `EA_REFERRAL_MODE=demo` until each provider and end-to-end flow is deliberately configured and verified.
+4. Vercel automatically deploys pushes to `main` as Production and creates Preview deployments for other Git branches. The GitHub Actions workflow runs repository checks and the production build; it does not deploy independently.
+5. If connected mode is configured later, add the production origin to Supabase Authentication's Site URL/allowed URLs, use separate Preview credentials as appropriate, and redeploy after changing environment variables.
 
 ## 4. Local and deployment checks
 

@@ -122,14 +122,39 @@ export function assertSameOrigin(request: Request): void {
     if (bearer) return;
     throw new ApiError(403, "forbidden", "A same-origin request is required.");
   }
-  let expected: string;
-  try {
-    expected = new URL(process.env.APP_ORIGIN ?? "").origin;
-  } catch {
+  const allowedOrigins = new Set<string>();
+  const configuredOrigin = process.env.APP_ORIGIN?.trim();
+  if (configuredOrigin) {
+    try {
+      const parsed = new URL(configuredOrigin);
+      const isLocalHttp =
+        parsed.protocol === "http:" &&
+        ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname);
+      if (
+        (parsed.protocol === "https:" || isLocalHttp) &&
+        !parsed.username &&
+        !parsed.password
+      ) {
+        allowedOrigins.add(parsed.origin);
+      }
+    } catch {
+      // A valid Vercel deployment origin can still be used for previews.
+    }
+  }
+  const deploymentHost = process.env.VERCEL_URL?.trim();
+  if (
+    deploymentHost &&
+    /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+vercel\.app$/i.test(
+      deploymentHost,
+    )
+  ) {
+    allowedOrigins.add(`https://${deploymentHost.toLowerCase()}`);
+  }
+  if (allowedOrigins.size === 0) {
     throw new ApiError(403, "forbidden", "Request origin is not allowed.");
   }
   try {
-    if (new URL(origin).origin !== expected)
+    if (!allowedOrigins.has(new URL(origin).origin))
       throw new ApiError(403, "forbidden", "Request origin is not allowed.");
   } catch (error) {
     if (error instanceof ApiError) throw error;

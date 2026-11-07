@@ -101,6 +101,53 @@ test("auth mutation requires same-origin when no bearer credential is used", asy
   );
 });
 
+test("same-origin mutations allow the exact generated Vercel deployment host", () => {
+  configure();
+  process.env.VERCEL_URL =
+    "ea-referral-git-feature-aashikvillas-projects.vercel.app";
+
+  assert.doesNotThrow(() =>
+    assertSameOrigin(
+      new Request(
+        "https://ea-referral-git-feature-aashikvillas-projects.vercel.app/api/session",
+        {
+          method: "POST",
+          headers: {
+            origin:
+              "https://ea-referral-git-feature-aashikvillas-projects.vercel.app",
+          },
+        },
+      ),
+    ),
+  );
+  assert.throws(
+    () =>
+      assertSameOrigin(
+        new Request("https://attacker.vercel.app/api/session", {
+          method: "POST",
+          headers: { origin: "https://attacker.vercel.app" },
+        }),
+      ),
+    (error) => error instanceof ApiError && error.status === 403,
+  );
+});
+
+test("same-origin mutations reject unsafe configured protocols", () => {
+  process.env.APP_ORIGIN = "data:text/plain,unsafe";
+  delete process.env.VERCEL_URL;
+
+  assert.throws(
+    () =>
+      assertSameOrigin(
+        new Request("https://referral.example.invalid/api/session", {
+          method: "POST",
+          headers: { origin: "null" },
+        }),
+      ),
+    (error) => error instanceof ApiError && error.status === 403,
+  );
+});
+
 test("demo mode reports no session and does not call the auth provider", async () => {
   configure("demo");
   let called = false;
