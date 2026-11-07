@@ -17,14 +17,15 @@ export default function Home() {
       <section className="mx-auto grid max-w-7xl gap-12 px-5 pt-8 pb-10 sm:px-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:gap-16 lg:pt-16 lg:pb-20">
         <div>
           <Eyebrow>A personal referral, made clearer</Eyebrow>
-          <h1 className="mt-5 max-w-3xl font-serif text-5xl leading-[1.04] tracking-[-0.045em] text-[#173d32] sm:text-6xl lg:text-[4.5rem]">
-            A thoughtful way to ask for a referral.
+          <h1 className="title-depth mt-5 max-w-3xl font-sans text-4xl leading-[1.04] font-extrabold tracking-[-0.045em] sm:text-6xl lg:text-[4.5rem]">
+            <span className="block">Check the role.</span>
+            <span className="block">Share your story.</span>
+            <span className="block">Know what’s next.</span>
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-[#52645d]">
-            Share the role you have in mind, tell me a little about your
-            experience, and I’ll take a look when I can. The process is
-            straightforward and there’s no expectation to add more than your
-            resume.
+            A personal referral request, guided from role check through owner
+            review. Share your resume if it’s a fit; there’s no pressure to add
+            more.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link

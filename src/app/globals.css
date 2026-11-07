@@ -32,6 +32,16 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+.title-depth {
+  color: #123f73;
+  text-shadow:
+    0 1px 0 #aac7e2,
+    0 2px 0 #7ea4c9,
+    0 3px 0 #4776a3,
+    0 9px 15px rgb(26 76 128 / 18%);
+  text-wrap: balance;
+}
+
 ::selection {
   background: #cde8df;
   color: #173f38;
