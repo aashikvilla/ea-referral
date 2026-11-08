@@ -218,12 +218,15 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
   ];
   const guideMood: GuideMood =
     step === "complete"
-      ? "success"
+      ? "submitted"
       : step === "stopped" || stopAtStart || unknown
         ? "unavailable"
-        : step === "eligibility" || step === "resume" || step === "review"
+        : step === "resume" && uploading
           ? "checking"
-          : "reassuring";
+          : step === "review" ||
+              (step === "resume" && resumeReadiness?.ready === true)
+            ? "looks-good"
+            : "reassuring";
   const guideContent: Record<Step, { title: string; message: string }> = {
     eligibility: {
       title: "A few straightforward checks.",

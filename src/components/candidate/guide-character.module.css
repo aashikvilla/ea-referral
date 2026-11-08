@@ -2,217 +2,96 @@
   position: relative;
   display: block;
   width: 100%;
-  height: 320px;
+  height: 100%;
+  min-width: 0;
   overflow: hidden;
   isolation: isolate;
-  border-radius: 1.6rem;
+  border-radius: inherit;
   background: radial-gradient(
     ellipse at 50% 82%,
-    rgb(77 123 249 / 12%) 0%,
+    rgb(77 123 249 / 9%) 0%,
     transparent 68%
   );
-  contain: layout paint;
-  touch-action: pan-y;
 }
 
-.stage::before,
-.stage::after {
-  position: absolute;
-  z-index: 0;
-  border: 1px solid rgb(74 131 232 / 16%);
-  border-radius: 50%;
-  content: "";
-  pointer-events: none;
-}
-
-.stage::before {
-  top: 7%;
-  left: 19%;
-  width: 62%;
-  height: 83%;
-  transform: rotate(22deg);
-}
-
-.stage::after {
-  top: 14%;
-  left: 28%;
-  width: 44%;
-  height: 70%;
-  border-color: rgb(63 214 240 / 21%);
-  transform: rotate(-27deg);
-}
-
-.canvas {
+.portrait {
   position: absolute;
   z-index: 1;
   inset: 0;
-  display: block;
   width: 100%;
   height: 100%;
+  object-fit: contain;
+  object-position: center;
+  transform-origin: center 86%;
+  transition: opacity 240ms ease-in-out;
+  will-change: opacity;
 }
 
-.aura {
-  position: absolute;
-  z-index: 0;
-  right: 15%;
-  bottom: 12%;
-  left: 15%;
-  height: 15%;
-  border-radius: 50%;
-  background: rgb(31 82 202 / 16%);
-  filter: blur(21px);
-  animation: aura-breathe 3.4s ease-in-out infinite;
-  pointer-events: none;
+.portraitCurrent {
+  opacity: 1;
 }
 
-.orbit {
-  position: absolute;
-  z-index: 0;
-  top: 17%;
-  right: 19%;
-  width: 0.52rem;
-  height: 0.52rem;
-  border-radius: 50%;
-  background: #58dff2;
-  box-shadow: 0 0 19px rgb(72 217 242 / 60%);
-  animation: orbit-drift 4.8s ease-in-out infinite;
-  pointer-events: none;
+.portraitIncoming {
+  opacity: 0;
 }
 
-.fallback {
+.portraitIncoming[data-ready="true"] {
+  opacity: 1;
+}
+
+.checkingIndicator {
   position: absolute;
   z-index: 2;
-  display: block;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+  top: 12%;
+  right: 11%;
+  display: grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  place-items: center;
+  border: 1px solid rgb(36 86 199 / 17%);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 3px 10px rgb(25 68 120 / 12%);
 }
 
-.stage[data-renderer-ready="true"] .fallback {
-  display: none;
+.checkingArc {
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 2px solid rgb(36 86 199 / 20%);
+  border-top-color: #39b8d5;
+  border-right-color: #39b8d5;
+  border-radius: 50%;
 }
 
-.fallbackBody {
-  transform-origin: 180px 355px;
-  animation: fallback-breathe 3.2s ease-in-out infinite;
-}
-
-.fallbackLeftArm,
-.fallbackRightArm {
-  transform-box: view-box;
-  transition: transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.fallbackLeftArm {
-  transform-origin: 110px 220px;
-}
-
-.fallbackRightArm {
-  transform-origin: 249px 220px;
-}
-
-.fallback[data-state="welcome"] .fallbackRightArm {
-  animation: fallback-wave 1.45s ease-in-out infinite;
-}
-
-.fallback[data-state="thinking"] .fallbackLeftArm {
-  transform: rotate(-64deg) translate(6px, -8px);
-}
-
-.fallback[data-state="pointing"] .fallbackRightArm {
-  transform: rotate(-67deg) translate(3px, 5px);
-}
-
-.fallback[data-state="success"] .fallbackLeftArm {
-  transform: rotate(-102deg) translate(-3px, 0);
-}
-
-.fallback[data-state="success"] .fallbackRightArm {
-  transform: rotate(102deg) translate(3px, 0);
-}
-
-.fallback[data-state="unavailable"] .fallbackLeftArm {
-  transform: rotate(-30deg);
-}
-
-.fallback[data-state="unavailable"] .fallbackRightArm {
-  transform: rotate(30deg);
-}
-
-.stage[data-state="checking"] .orbit {
-  top: 31%;
-  right: 31%;
-  animation-duration: 1.15s;
-}
-
-.stage[data-state="success"] .aura {
-  background: rgb(74 191 228 / 23%);
-}
-
-.stage[data-focused="true"]::after {
-  border-color: rgb(49 94 219 / 36%);
-}
-
-@keyframes aura-breathe {
-  0%,
-  100% {
-    opacity: 0.56;
-    transform: scaleX(0.94);
+@media (prefers-reduced-motion: no-preference) {
+  .portrait {
+    animation: gentle-breath 6.8s ease-in-out infinite;
   }
-  50% {
-    opacity: 0.92;
-    transform: scaleX(1.04);
-  }
-}
 
-@keyframes orbit-drift {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  50% {
-    transform: translate(-17px, 23px);
-  }
-}
-
-@keyframes fallback-breathe {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-3px);
-  }
-}
-
-@keyframes fallback-wave {
-  0%,
-  100% {
-    transform: rotate(-8deg);
-  }
-  50% {
-    transform: rotate(28deg);
-  }
-}
-
-@media (min-width: 640px) {
-  .stage {
-    height: 380px;
+  .checkingArc {
+    animation: checking-spin 850ms linear infinite;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .aura,
-  .orbit,
-  .fallbackBody,
-  .fallbackLeftArm,
-  .fallbackRightArm {
-    animation: none !important;
-    transition: none !important;
+  .portrait {
+    animation: none;
+    transition: none;
   }
+}
 
-  .fallback[data-state="welcome"] .fallbackRightArm {
-    transform: rotate(48deg);
+@keyframes gentle-breath {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-1px) scale(1.003);
+  }
+}
+
+@keyframes checking-spin {
+  to {
+    transform: rotate(360deg);
   }
 }

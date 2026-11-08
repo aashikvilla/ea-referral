@@ -11,7 +11,9 @@ export type GuideMood =
   | "pointing"
   | "reassuring"
   | "success"
-  | "unavailable";
+  | "unavailable"
+  | "looks-good"
+  | "submitted";
 
 const characterState: Record<GuideMood, GuideCharacterState> = {
   idle: "idle",
@@ -19,20 +21,24 @@ const characterState: Record<GuideMood, GuideCharacterState> = {
   thinking: "thinking",
   checking: "checking",
   pointing: "pointing",
-  reassuring: "idle",
-  success: "success",
+  reassuring: "need-info",
+  success: "looks-good",
   unavailable: "unavailable",
+  "looks-good": "looks-good",
+  submitted: "submitted",
 };
 
 const moodLabel: Record<GuideMood, string> = {
   idle: "Ready when you are",
   welcome: "A clear place to start",
   thinking: "Working it out",
-  checking: "One step at a time",
+  checking: "Checking the details",
   pointing: "Let’s start here",
   reassuring: "You’re in control",
-  success: "Request received",
+  success: "Looks good",
   unavailable: "Let’s pause here",
+  "looks-good": "Looks good",
+  submitted: "Request received",
 };
 
 export function CandidateGuide({
@@ -49,12 +55,19 @@ export function CandidateGuide({
   headingLevel?: "h1" | "h2";
 }) {
   const Heading = headingLevel;
+  const imageSizes =
+    layout === "compact"
+      ? "112px"
+      : layout === "hero"
+        ? "(max-width: 640px) 80vw, 272px"
+        : "192px";
   return (
     <aside className={`guide-card guide-card--${layout} guide-card--${mood}`}>
       <div className="guide-card__art" aria-hidden="true">
         <GuideCharacter
           state={characterState[mood]}
           className="guide-card__character"
+          sizes={imageSizes}
         />
       </div>
       <div className="guide-card__copy">

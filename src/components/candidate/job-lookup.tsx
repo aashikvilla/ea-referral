@@ -127,7 +127,7 @@ export function JobLookup({ onGuideUpdate }: JobLookupProps) {
       }
 
       onGuideUpdate?.(
-        "success",
+        "looks-good",
         "The listing is open and the referral slot is available. Let’s check the next step.",
       );
       router.push(`/referral/${encodeURIComponent(job.id)}`);
