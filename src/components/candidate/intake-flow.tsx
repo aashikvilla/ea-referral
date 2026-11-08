@@ -312,11 +312,7 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
           missingFields: resume.readiness?.missingFields ?? [],
           parserStatus: resume.parserStatus,
         });
-        setError(
-          resume.parserStatus === "quarantined"
-            ? "The file is quarantined because a clean scan is not available. Try again when file scanning is configured."
-            : "",
-        );
+        setError("");
       })
       .catch((reason: unknown) =>
         setError(
@@ -459,13 +455,11 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
     }
     if (!resumeId || !resumeReadiness?.ready) {
       setError(
-        resumeReadiness?.parserStatus === "quarantined"
-          ? "The resume is quarantined until a clean file scan is available."
-          : resumeReadiness?.missingFields.length
-            ? `The resume needs readable ${resumeReadiness.missingFields.join(", ")}.`
-            : uploading
-              ? "Wait for the resume upload and check to finish."
-              : "Upload a resume and wait for its server check before continuing.",
+        resumeReadiness?.missingFields.length
+          ? `The resume needs readable ${resumeReadiness.missingFields.join(", ")}.`
+          : uploading
+            ? "Wait for the resume upload and check to finish."
+            : "Upload a resume and wait for its server check before continuing.",
       );
       return;
     }
@@ -1268,7 +1262,8 @@ function ResumeStep({
           Choose a resume file from this device
         </span>
         <span className="mt-1 block text-xs leading-5 text-[#687d94]">
-          PDF or DOCX · up to 4 MiB · uploaded for a secure scan and text check
+          PDF or DOCX · up to 4 MiB · checked for supported format and readable
+          text
         </span>
         <input
           className="mt-3 block w-full text-sm text-[#526174] file:mr-3 file:rounded-full file:border-0 file:bg-[#e8f1ff] file:px-4 file:py-2 file:text-xs file:font-semibold file:text-[#2456c7]"
@@ -1287,13 +1282,16 @@ function ResumeStep({
             ? "Uploading and checking the resume…"
             : readiness?.ready
               ? `${localResume.name} is ready. Required contact fields were found in the document.`
-              : readiness?.parserStatus === "quarantined"
-                ? `${localResume.name} is quarantined pending a clean scan.`
-                : readiness
-                  ? `The document needs readable ${readiness.missingFields.join(", ") || "contact fields"}. Update the file and upload it again.`
-                  : "Waiting for the server resume check."}
+              : readiness
+                ? `The document needs readable ${readiness.missingFields.join(", ") || "contact fields"}. Update the file and upload it again.`
+                : "Waiting for the server resume check."}
         </p>
       )}
+      <p className="mt-2 text-xs leading-5 text-[#687d94]">
+        Server checks the file type, structure, active features, and parsing
+        limits. These checks are not a full antivirus scan and cannot detect
+        every malware threat.
+      </p>
       <div className="mt-6">
         <ActionRow back={onBack} next={onNext} />
       </div>

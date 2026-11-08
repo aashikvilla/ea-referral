@@ -1,6 +1,6 @@
 # Setup and deployment
 
-This guide configures the connected app with Supabase, a malware scanning service, and Vercel. All five database migrations are applied, and the GitHub repository is linked to Vercel. The application fails closed until the required settings and provider checks are complete: see [Current limits](#current-limits).
+This guide configures the connected app with Supabase and Vercel. All five database migrations are applied, and the GitHub repository is linked to Vercel. The application fails closed until the required settings and provider checks are complete: see [Current limits](#current-limits).
 
 ## 1. Supabase project
 
@@ -8,24 +8,23 @@ Use the Supabase project named **ea-referral**, project reference `xqotcezfgirjd
 
 ### Environment variables
 
-The server reads these exact variables (`src/server/config.ts` and `src/server/files/security.ts`):
+The server reads these exact variables (`src/server/config.ts`, `src/server/assessment.ts`, and `src/server/files/security.ts`):
 
-| Variable                   | Value                                                                                                                                               |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EA_REFERRAL_MODE`         | Must be `connected`. Missing or any other value disables connected server operations.                                                               |
-| `APP_ORIGIN`               | The exact origin serving this environment, such as `http://localhost:3000` or the Vercel production URL. No path or trailing slash is needed.       |
-| `SUPABASE_URL`             | `https://xqotcezfgirjdoowxpkz.supabase.co`                                                                                                          |
-| `SUPABASE_PUBLISHABLE_KEY` | The project's Supabase publishable key.                                                                                                             |
-| `SUPABASE_SECRET_KEY`      | The project's Supabase secret key. Server-side only; never expose it to browser code.                                                               |
-| `ADMIN_USER_ID`            | UUID of the Supabase Auth user who owns the admin workspace.                                                                                        |
-| `FILE_SCANNER_URL`         | Optional HTTPS URL for the malware scan endpoint described below. Without it, files remain quarantined.                                             |
-| `FILE_SCANNER_TOKEN`       | Optional bearer token for the scanner, if it requires authentication.                                                                               |
-| `AI_GATEWAY_API_KEY`       | Required for live owner-triggered advisory assessments. Configure a Vercel AI Gateway credential (OIDC-issued where supported) or an API key.       |
-| `AI_GATEWAY_MODEL`         | Required model identifier accepted by Vercel AI Gateway. Choose/configure this value for the intended provider; this guide does not select a model. |
-| `RESEND_API_KEY`           | Required for connected notification sends through Resend.                                                                                           |
-| `RESEND_FROM_EMAIL`        | Required sender address accepted by Resend; its domain must be verified with Resend first.                                                          |
+| Variable                     | Value                                                                                                                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EA_REFERRAL_MODE`           | Must be `connected`. Missing or any other value disables connected server operations.                                                         |
+| `APP_ORIGIN`                 | The exact origin serving this environment, such as `http://localhost:3000` or the Vercel production URL. No path or trailing slash is needed. |
+| `SUPABASE_URL`               | `https://xqotcezfgirjdoowxpkz.supabase.co`                                                                                                    |
+| `SUPABASE_PUBLISHABLE_KEY`   | The project's Supabase publishable key.                                                                                                       |
+| `SUPABASE_SECRET_KEY`        | The project's Supabase secret key. Server-side only; never expose it to browser code.                                                         |
+| `ADMIN_USER_ID`              | UUID of the Supabase Auth user who owns the admin workspace.                                                                                  |
+| `OPENROUTER_API_KEY`         | Optional secret for owner-triggered advisory assessments. Store server-side only.                                                             |
+| `OPENROUTER_MODEL`           | Optional primary model. Defaults to `google/gemma-4-31b-it:free`; only `:free` model IDs are accepted.                                        |
+| `OPENROUTER_FALLBACK_MODELS` | Optional comma-separated fallback IDs. Defaults to free models listed in `.env.example`; paid model IDs are ignored.                          |
+| `RESEND_API_KEY`             | Required for connected notification sends through Resend.                                                                                     |
+| `RESEND_FROM_EMAIL`          | Required sender address accepted by Resend; its domain must be verified with Resend first.                                                    |
 
-Set variables only after configuring the matching provider. In Vercel, use **Project → Settings → Environment Variables** and select the intended **Production**, **Preview**, and/or **Development** scope for each variable. Set `APP_ORIGIN` to the production origin and `http://localhost:3000` for local development. On Vercel, same-origin mutation checks also allow the exact generated deployment host from the platform's `VERCEL_URL`, so previews do not need a hard-coded per-deployment origin. Keep all Supabase, scanner, AI Gateway, and Resend variables server-only: do not prefix them with `NEXT_PUBLIC_`. Use a separate Supabase project for Preview if preview deployments should not access production data.
+Set variables only after configuring the matching provider. In Vercel, use **Project → Settings → Environment Variables** and select the intended **Production**, **Preview**, and/or **Development** scope for each variable. Set `APP_ORIGIN` to the production origin and `http://localhost:3000` for local development. On Vercel, same-origin mutation checks also allow the exact generated deployment host from the platform's `VERCEL_URL`, so previews do not need a hard-coded per-deployment origin. Keep Supabase, OpenRouter, and Resend secrets server-side: do not prefix them with `NEXT_PUBLIC_`. Use a separate Supabase project for Preview if preview deployments should not access production data.
 
 For local work, copy `.env.example` to `.env.local` and replace its placeholders with values from a non-production Supabase project. `.env.local` is ignored by Git. Do not use Production secrets in local development or Preview deployments.
 
@@ -91,40 +90,29 @@ The app calls Supabase Auth's email OTP request and verification endpoints. In S
 
 Create or invite the intended owner in **Authentication → Users** and copy that user's UUID into `ADMIN_USER_ID` for each connected environment. After the app is deployed and connected, sign in at `/sign-in` with that email to confirm OTP delivery and owner access; redeploy/restart after changing the variable. Admin access is granted only when the authenticated Supabase user ID exactly matches this value. Candidate and owner sign-in both depend on successful Supabase OTP delivery.
 
-### Configure AI Gateway advisory assessment
+### Configure OpenRouter advisory assessment
 
-The owner can explicitly request an advisory evidence assessment from an application review. Add `AI_GATEWAY_API_KEY` and `AI_GATEWAY_MODEL` to the desired server environment. The code sends `AI_GATEWAY_API_KEY` as a bearer credential. You may use a Gateway API key or a Vercel OIDC credential if your runtime makes its Gateway-compatible token available under this exact variable; this code does not retrieve an OIDC token itself. Choose the model identifier appropriate for your provider and enter it as `AI_GATEWAY_MODEL`; no model is selected or configured in this repository. The assessment sends redacted resume text and the job description to the Gateway only after the owner requests it. The output is advisory, cites source text, and does not update an application decision. No live Gateway call or provider setup has been performed as part of this work.
+The owner can explicitly request an advisory evidence assessment from an application review. Create an API key in [OpenRouter](https://openrouter.ai/settings/keys) and add it as `OPENROUTER_API_KEY` in Vercel. The default primary model is `google/gemma-4-31b-it:free`, currently listed at $0 and supporting structured output. If it is unavailable, OpenRouter receives a fallback list of other current `:free` models. The app refuses model IDs without the `:free` suffix so it cannot silently switch to paid inference.
+
+OpenRouter's free tier currently allows 50 free-model requests per day and 20 per minute; failed attempts count toward the daily limit. Model fallbacks can help with a model or provider outage, but cannot bypass the account-wide quota. When quota is exhausted or all free models fail, the assessment is unavailable and owner review continues manually. Do not configure paid credits for this project without an explicit budget decision.
+
+The assessment sends resume text with detected name, email, and phone redacted, plus the job description, only when the owner presses the assessment button. OpenRouter may route the request to its model provider, whose retention and training terms vary. Review the terms shown for your selected model/provider. The output is advisory, cites source text, and never updates an application decision. No API key or live request has been configured yet.
 
 ### Configure Resend notifications
 
 Connected notification preview and send APIs are implemented, and the owner notification screen is wired to them. To enable delivery, configure a sending domain in Resend, publish the DNS records Resend provides, wait for domain verification, and set `RESEND_API_KEY` plus a verified sender address in `RESEND_FROM_EMAIL` for the intended Vercel environments. Those account and DNS steps remain for the operator; no sender domain has been configured here. Sends require an owner to review the current preview and explicitly approve it. Without both variables, previews can still be shown, but the send action is unavailable.
 
-## 2. Malware scanner endpoint
+## 2. In-process file checks and Supabase Storage
 
-`FILE_SCANNER_URL` must point to an HTTPS endpoint (plain HTTP is accepted only for localhost development). For each uploaded file, the app sends a `POST` whose body is the raw file bytes and whose headers are:
+The app accepts only PDF and DOCX files, verifies the declared MIME type against the file extension and signature, caps uploads at 4 MiB, and parses the content with bounded PDF page, ZIP entry, archive expansion, and text limits. It rejects known active PDF actions, DOCX macros and embedded active objects, invalid ZIP/XML structures, and files that the supported parser cannot safely read. Files that pass are uploaded by the server to the existing private `ea_referral_resumes` Supabase bucket. The secret key is never sent to the browser; downloads require an authenticated owner/candidate route and use a short-lived signed URL.
 
-| Header                                   | Meaning                                               |
-| ---------------------------------------- | ----------------------------------------------------- |
-| `Content-Type: application/octet-stream` | Request body is the raw uploaded bytes.               |
-| `Content-Length`                         | Exact byte length.                                    |
-| `X-File-Name`                            | URL-encoded original filename.                        |
-| `X-File-Content-Type`                    | Detected/accepted file media type.                    |
-| `X-File-SHA256`                          | Lowercase SHA-256 hex digest of the exact body bytes. |
-| `Authorization: Bearer …`                | Sent only when `FILE_SCANNER_TOKEN` is set.           |
-
-The endpoint must return a successful HTTP status and a JSON response no larger than 4 KiB, for example:
-
-```json
-{ "status": "clean", "sha256": "<lowercase SHA-256 of the request body>" }
-```
-
-`status` must be exactly `clean` or `malicious`, and `sha256` must match the request's `X-File-SHA256`. Any timeout (12 seconds), network error, redirect, non-success status, malformed/oversized response, unrecognized status, or digest mismatch is treated as `quarantined`. A malicious result is rejected. A clean result is required before a file can be used in an application or downloaded. This is fail-closed: leave the scanner unset until a compatible endpoint is ready, and expect uploads to remain quarantined in the meantime.
+These checks are deterministic format and content checks, not antivirus software. They reduce risk from malformed files and common active document features, but they cannot detect every malware payload. Do not describe a passing file as virus-free, and do not use this flow for executable files. A failed check rejects the upload before it is stored.
 
 ## 3. Vercel and GitHub deployment
 
 1. The Vercel project `ea-referral` is linked to GitHub repository `aashikvilla/ea-referral`; `main` is the production branch and Node 24 matches `.nvmrc` and GitHub Actions. Vercel uses the repository root and the detected Next.js build defaults.
 2. The verified production domain is `https://ea-referral.vercel.app`. `EA_REFERRAL_MODE=connected` is set for Production, Preview, and Development. `APP_ORIGIN` is set to the production domain for Production and `http://localhost:3000` for Development. Vercel's generated `VERCEL_URL` is also accepted for exact same-origin checks on Preview deployments.
-3. Production has `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and an encrypted `SUPABASE_SECRET_KEY`. No Supabase Auth user exists yet, so `ADMIN_USER_ID` is missing and the app remains unavailable until the owner account is created and configured. Preview/Development intentionally do not receive Production Supabase credentials.
+3. Production has `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and an encrypted `SUPABASE_SECRET_KEY`. `OPENROUTER_MODEL` and `OPENROUTER_FALLBACK_MODELS` are set to free models; `OPENROUTER_API_KEY` is still missing. No Supabase Auth user exists yet, so `ADMIN_USER_ID` is missing and connected routes remain unavailable until the owner account is created and configured. Preview/Development intentionally do not receive Production Supabase credentials.
 4. Vercel automatically deploys pushes to `main` as Production and creates Preview deployments for other Git branches. The GitHub Actions workflow runs repository checks and the production build; it does not deploy independently.
 5. Add each connected app origin to Supabase Authentication's Site URL/allowed URLs, use separate Preview credentials, and redeploy after changing environment variables.
 
@@ -145,14 +133,14 @@ npm run build
 npm run start
 ```
 
-`npm run check` runs ESLint, Next.js type generation and TypeScript checks, Prettier check, and the Node test suite. `npm run start` serves the build created by `npm run build`; open `http://localhost:3000` while it is running. These checks use mocks/fixtures and do not prove that live Supabase, Auth email delivery, storage, or the scanner is configured correctly.
+`npm run check` runs ESLint, Next.js type generation and TypeScript checks, Prettier check, and the Node test suite. `npm run start` serves the build created by `npm run build`; open `http://localhost:3000` while it is running. These checks use mocks/fixtures and do not prove that live Supabase, Auth email delivery, storage, or OpenRouter is configured correctly.
 
-After provider configuration and deployment, manually verify in a browser: request and verify an OTP, confirm the configured owner sees admin routes and a non-owner does not, confirm the job list/API reads from the database, exercise a test upload with a compatible scanner, request an advisory assessment if configured, and preview/send a test notification only after Resend and its sender domain are verified. A clean upload should only proceed after both the scanner returns a matching digest and the resume parser can read the supported text-based PDF/DOCX content. Confirm storage remains private and downloads require authorization. Do not use real applicant files for setup checks. No browser verification has been performed.
+After provider configuration and deployment, manually verify in a browser: request and verify an OTP, confirm the configured owner sees admin routes and a non-owner does not, confirm the job list/API reads from the database, upload a synthetic PDF/DOCX test file and confirm it reaches the private bucket after built-in checks, request an assessment if configured, and preview/send a test notification only after Resend and its sender domain are verified. Confirm downloads require authorization. Do not use real applicant files for setup checks.
 
 ## Current limits
 
 - Resend notification preview/send code is implemented, but Resend account setup, `RESEND_API_KEY`, verified sender/domain DNS, and live delivery verification remain outstanding. There is no separate status-link sender. Supabase Auth OTP delivery is separately configured through Supabase.
-- AI Gateway advisory assessment code is implemented, but `AI_GATEWAY_API_KEY`, operator-selected `AI_GATEWAY_MODEL`, and live provider verification remain outstanding. The model is called only on explicit owner request; it is not a decision-maker.
+- OpenRouter advisory assessment code is implemented, but `OPENROUTER_API_KEY` and live provider verification remain outstanding. The model is called only on explicit owner request; it is not a decision-maker.
 - OCR is unavailable. Resume extraction supports bounded text-based PDF and DOCX parsing only, with limited PDF operator/font coverage.
 - The app does not automate EA referral submissions, scrape LinkedIn, or read LinkedIn messages. The owner must review and submit any referral manually.
 - Vercel project setup and deployment are configured. Auth owner setup, SMTP/OTP delivery, optional providers, and browser verification remain outstanding. Configuring services does not by itself make the connected workflow production-ready; integration and operational review are still required.

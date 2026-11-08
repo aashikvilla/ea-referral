@@ -9,7 +9,7 @@ import {
   type ParsedContact,
 } from "@/server/files/contracts";
 import { PdfDocxParser } from "@/server/files/parser";
-import { HttpMalwareScanner, readPrivateObject } from "@/server/files/security";
+import { readPrivateObject } from "@/server/files/security";
 import type { ResumeRecordInput } from "@/server/repository";
 
 export const maxDuration = 15;
@@ -29,33 +29,16 @@ export async function POST(
     const doc = documentType(resume.fileName, resume.contentType);
     const bytes = await readPrivateObject(resume.storagePath, RESUME_MAX_BYTES);
     validateDocumentMagic(bytes, doc);
-    const scan = await new HttpMalwareScanner().scan(
-      bytes,
-      resume.fileName,
-      doc.contentType,
+    const parsed: ParsedContact = parseContacts(
+      await new PdfDocxParser().extractText(bytes, doc),
     );
-    let parsed: ParsedContact = {
-      fields: { firstName: null, lastName: null, email: null, phone: null },
-      flags: { firstName: false, lastName: false, email: false, phone: false },
-      ready: false,
-    };
-    let parserStatus: ResumeRecordInput["parserStatus"] = "unavailable";
-    if (scan.status === "clean") {
-      try {
-        parsed = parseContacts(
-          await new PdfDocxParser().extractText(bytes, doc),
-        );
-        parserStatus = parsed.ready ? "ready" : "correction_required";
-      } catch {
-        parserStatus = "correction_required";
-      }
-    } else if (scan.status === "malicious") {
-      parserStatus = "failed";
-    }
+    const parserStatus: ResumeRecordInput["parserStatus"] = parsed.ready
+      ? "ready"
+      : "correction_required";
     const updated = await repo.updateResumeValidation(id, user.id, {
       parserStatus,
       parsedFields: parsed.flags,
-      scanStatus: scan.status === "malicious" ? "rejected" : scan.status,
+      scanStatus: "clean",
     });
     return json(
       {
@@ -81,7 +64,7 @@ export async function POST(
           extracted: parsed.fields,
         },
       },
-      scan.status === "clean" ? 200 : 202,
+      200,
     );
   } catch (error) {
     return fail(error);

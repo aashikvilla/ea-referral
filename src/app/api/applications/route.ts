@@ -310,7 +310,7 @@ export async function POST(request: Request) {
       throw new ApiError(
         400,
         "invalid_request",
-        "One or more supporting files are not available or have not passed scanning.",
+        "One or more supporting files have not passed the built-in file checks.",
       );
     const extrasSize = supporting.reduce((sum, file) => sum + file.fileSize, 0);
     if (extrasSize > SUPPORTING_TOTAL_MAX_BYTES)

@@ -31,9 +31,26 @@ export default function PrivacyPage() {
               Resume checks
             </h2>
             <p className="mt-2 leading-7 text-[#5d7087]">
-              A resume must pass a clean file scan and contain readable contact
-              details before it can be accepted. A successful check does not
-              guarantee that EA’s recruiting systems can read the document.
+              A resume must match its declared PDF or DOCX type, pass bounded
+              structure and active-content checks, and contain readable contact
+              details before it can be accepted. These checks are not a full
+              antivirus scan and cannot detect every malware threat. Passing
+              them does not guarantee that EA’s recruiting systems can read the
+              document.
+            </p>
+          </section>
+          <section>
+            <h2 className="text-lg font-semibold text-[#1c3d64]">
+              Optional AI review
+            </h2>
+            <p className="mt-2 leading-7 text-[#5d7087]">
+              The owner may choose to request an advisory comparison between
+              resume text and the role description. Before sending, the service
+              redacts detected name, email, and phone details. The remaining
+              text is sent to OpenRouter and the model provider selected for the
+              request. Their retention and model-training terms vary. The
+              assessment is advisory and does not make a referral or hiring
+              decision.
             </p>
           </section>
           <section>

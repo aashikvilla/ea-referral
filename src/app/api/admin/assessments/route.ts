@@ -1,7 +1,11 @@
 import { bodyRecord, identifier } from "@/app/api/_lib";
 import { requireAdmin } from "@/server/auth";
 import { getReferralRepository } from "@/server/supabase-repository";
-import { assessWithGateway, redactAssessmentText } from "@/server/assessment";
+import {
+  assessWithOpenRouter,
+  DEFAULT_OPENROUTER_MODEL,
+  redactAssessmentText,
+} from "@/server/assessment";
 import {
   ApiError,
   assertSameOrigin,
@@ -86,11 +90,12 @@ export async function POST(request: Request) {
       name: `${candidate.firstName} ${candidate.lastName}`,
     });
     const jobDescription = redactAssessmentText(job.description, {});
-    const result = await assessWithGateway({
+    const result = await assessWithOpenRouter({
       resumeText,
       jobDescription,
-      model: process.env.AI_GATEWAY_MODEL,
-      apiKey: process.env.AI_GATEWAY_API_KEY,
+      model: process.env.OPENROUTER_MODEL ?? DEFAULT_OPENROUTER_MODEL,
+      fallbackModels: process.env.OPENROUTER_FALLBACK_MODELS?.split(","),
+      apiKey: process.env.OPENROUTER_API_KEY,
     });
     if (result.status === "available") {
       await repo.recordAssessmentAudit({

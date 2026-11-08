@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  assessWithGateway,
+  assessWithOpenRouter,
   redactAssessmentText,
   validateAssessmentOutput,
 } from "../src/server/assessment.ts";
@@ -75,9 +75,9 @@ test("assessment accepts only exact source citations and supported claims", () =
   );
 });
 
-test("unconfigured Gateway assessment falls back without making a request", async () => {
+test("unconfigured OpenRouter assessment falls back without making a request", async () => {
   let called = false;
-  const result = await assessWithGateway({
+  const result = await assessWithOpenRouter({
     resumeText: "Experience",
     jobDescription: "Role",
     fetcher: async () => {
@@ -89,7 +89,7 @@ test("unconfigured Gateway assessment falls back without making a request", asyn
   assert.equal(called, false);
 });
 
-test("Gateway assessment returns validated evidence coverage and audit metadata", async () => {
+test("OpenRouter assessment returns validated evidence coverage and audit metadata", async () => {
   const resumeText = "Built a C++ gameplay system.";
   const jobDescription = "Build gameplay systems in C++.";
   const assessment = {
@@ -118,26 +118,49 @@ test("Gateway assessment returns validated evidence coverage and audit metadata"
     ],
   };
   let requestBody;
-  const result = await assessWithGateway({
+  const result = await assessWithOpenRouter({
     resumeText,
     jobDescription,
     apiKey: "test-key",
-    model: "provider/test-model-version",
+    model: "google/gemma-4-31b-it:free",
     now: () => new Date("2026-10-25T00:00:00.000Z"),
     fetcher: async (_url, init) => {
       requestBody = JSON.parse(init.body);
       return Response.json({
-        model: "provider/test-model-version",
+        model: "google/gemma-4-31b-it:free",
         choices: [{ message: { content: JSON.stringify(assessment) } }],
       });
     },
   });
   assert.equal(result.status, "available");
   assert.equal(result.evidenceCoveragePercent, 45);
-  assert.equal(result.audit.requestedModel, "provider/test-model-version");
-  assert.equal(result.audit.returnedModel, "provider/test-model-version");
+  assert.equal(result.audit.requestedModel, "google/gemma-4-31b-it:free");
+  assert.equal(result.audit.returnedModel, "google/gemma-4-31b-it:free");
   assert.equal(result.audit.schemaVersion, "ea-evidence-assessment-v1");
   assert.equal(result.audit.completedAt, "2026-10-25T00:00:00.000Z");
   assert.equal(requestBody.response_format.json_schema.strict, true);
+  assert.deepEqual(requestBody.models, [
+    "google/gemma-4-26b-a4b-it:free",
+    "liquid/lfm-3-1.7b:free",
+    "xingchen-agi/xing4.0-29b-a4b:free",
+    "nvidia/nemotron-3.5-super-vl:free",
+  ]);
+  assert.deepEqual(requestBody.provider, { require_parameters: true });
   assert.match(requestBody.messages[0].content, /untrusted data/i);
+});
+
+test("OpenRouter refuses a paid model ID so fallback routing cannot incur spend", async () => {
+  let called = false;
+  const result = await assessWithOpenRouter({
+    resumeText: "Experience",
+    jobDescription: "Role",
+    apiKey: "test-key",
+    model: "google/gemma-4-31b-it",
+    fetcher: async () => {
+      called = true;
+      throw new Error("must not call a paid model");
+    },
+  });
+  assert.deepEqual(result, { status: "unavailable", reason: "not_configured" });
+  assert.equal(called, false);
 });

@@ -189,12 +189,12 @@ function StatusPageContent() {
       const resume = value.resume;
       if (!resume)
         throw new Error("The upload response did not include a resume check.");
-      const scanLabel =
+      const fileCheckLabel =
         resume.scanStatus === "clean"
-          ? "Clean scan"
+          ? "Built-in file checks passed"
           : resume.scanStatus === "quarantined"
-            ? "Quarantined pending a clean scan"
-            : "Scan status unavailable";
+            ? "File remains quarantined"
+            : "File check status unavailable";
       const parserLabel =
         resume.parserStatus === "ready"
           ? "Contact details readable"
@@ -203,7 +203,7 @@ function StatusPageContent() {
             : `Parser status: ${resume.parserStatus || "unavailable"}`;
       setUploadResults((current) => ({
         ...current,
-        [item.id]: `${scanLabel}. ${parserLabel}.`,
+        [item.id]: `${fileCheckLabel}. ${parserLabel}.`,
       }));
       const statusResponse = await fetch("/api/status", { cache: "no-store" });
       const statusData = await statusResponse.json();

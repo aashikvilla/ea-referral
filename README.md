@@ -24,7 +24,7 @@ The server fails closed until required Supabase and owner settings are valid. Do
 - `SUPABASE_SECRET_KEY` (server-only)
 - `ADMIN_USER_ID` (UUID of the owner’s Supabase Auth user)
 
-Optional integrations are documented in `.env.example`: file scanning, advisory assessment through AI Gateway, and owner-approved Resend notifications. File uploads remain quarantined until a scanner verifies them.
+Optional integrations are documented in `.env.example`: owner-triggered advisory assessment through OpenRouter and owner-approved Resend notifications. PDF and DOCX files pass bounded in-process format, active-content, and parser checks before storage in the private Supabase bucket. These checks are not a full antivirus scan.
 
 ## Commands
 
@@ -44,7 +44,7 @@ npm run start        # Serve the production build
 
 The Vercel project `ea-referral` is linked to `aashikvilla/ea-referral`, deploys `main` with Node 24, and uses `https://ea-referral.vercel.app`. Its environment is connected-only. The Supabase project is active; all five repository migrations are applied, ten referral tables have RLS and FORCE RLS enabled, client roles have no table access, the service role has the required access, the resume bucket is private, and database advisors report no issues.
 
-The production app remains unavailable until an owner account is created in Supabase Auth and its UUID is set as `ADMIN_USER_ID`. Email OTP delivery and a malware scanner also need configuration before real intake can be accepted. See the setup guide for the complete checklist and limits.
+The production app remains unavailable until an owner account is created in Supabase Auth and its UUID is set as `ADMIN_USER_ID`. Email OTP delivery also needs configuration before connected intake can be used. See the setup guide for the complete checklist and limits.
 
 ## Boundaries
 

@@ -8,6 +8,10 @@ const MAX_ARCHIVE_EXPANDED_BYTES = 8 * 1024 * 1024;
 const MAX_PDF_STREAM_BYTES = 8 * 1024 * 1024;
 const MAX_TEXT_CHARS = 1_000_000;
 const PDF_MAX_PAGES = 40;
+const PDF_ACTIVE_CONTENT =
+  /\/(?:JavaScript|JS|Launch|EmbeddedFiles?|RichMedia|OpenAction|AA|XFA|SubmitForm|ImportData)\b/i;
+const DOCX_ACTIVE_ENTRY =
+  /(?:^|\/)(?:vbaProject\.bin|embeddings|activeX|oleObject|digitalSignatures)(?:\/|$)/i;
 
 export interface DocumentParser {
   extractText(bytes: Uint8Array, document: SupportedDocument): Promise<string>;
@@ -65,6 +69,7 @@ function zipEntries(archive: Buffer): ZipEntry[] {
     throw new Error("DOCX archive exceeds safe processing limits");
 
   const entries: ZipEntry[] = [];
+  const names = new Set<string>();
   let offset = directoryOffset;
   let totalExpanded = 0;
   for (let index = 0; index < entryCount; index += 1) {
@@ -106,9 +111,12 @@ function zipEntries(archive: Buffer): ZipEntry[] {
       ![0, 8].includes(method) ||
       name.startsWith("/") ||
       name.includes("\\") ||
-      name.split("/").includes("..")
+      name.split("/").includes("..") ||
+      names.has(name) ||
+      DOCX_ACTIVE_ENTRY.test(name)
     )
       throw new Error("DOCX archive exceeds safe processing limits");
+    names.add(name);
     entries.push({
       name,
       flags,
@@ -182,8 +190,21 @@ function xmlText(xml: string): string {
 function decodeDocx(bytes: Uint8Array): string {
   const archive = Buffer.from(bytes);
   const entries = zipEntries(archive);
+  const contentTypes = entries.find(
+    (entry) => entry.name === "[Content_Types].xml",
+  );
   const document = entries.find((entry) => entry.name === "word/document.xml");
-  if (!document) throw new Error("DOCX document XML is missing");
+  if (!contentTypes || !document)
+    throw new Error("DOCX document structure is incomplete");
+  const contentTypeXml = inflateZipEntry(archive, contentTypes).toString(
+    "utf8",
+  );
+  if (
+    /<!DOCTYPE|<!ENTITY|macroEnabled|vbaProject|oleObject|activeX/i.test(
+      contentTypeXml,
+    )
+  )
+    throw new Error("DOCX active content is not allowed");
   return xmlText(
     new TextDecoder("utf-8", { fatal: true }).decode(
       inflateZipEntry(archive, document),
@@ -312,6 +333,8 @@ function pdfStreams(bytes: Uint8Array): Buffer[] {
       decoded = Buffer.from(streamBytes);
     }
     if (decoded) {
+      if (PDF_ACTIVE_CONTENT.test(decoded.toString("latin1")))
+        throw new Error("PDF active content is not allowed");
       totalExpanded += decoded.length;
       if (
         decoded.length > MAX_PDF_STREAM_BYTES ||
@@ -327,6 +350,8 @@ function pdfStreams(bytes: Uint8Array): Buffer[] {
 
 function decodePdf(bytes: Uint8Array): string {
   const source = Buffer.from(bytes).toString("latin1");
+  if (PDF_ACTIVE_CONTENT.test(source))
+    throw new Error("PDF active content is not allowed");
   const standardType1Fonts =
     "Courier|Courier-Bold|Courier-Oblique|Courier-BoldOblique|Helvetica|Helvetica-Bold|Helvetica-Oblique|Helvetica-BoldOblique|Times-Roman|Times-Bold|Times-Italic|Times-BoldItalic|Symbol|ZapfDingbats";
   const fontCount = [...source.matchAll(/\/Type\s*\/Font\b/g)].length;

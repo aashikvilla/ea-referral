@@ -10,10 +10,10 @@ import {
   validateDocumentMagic,
 } from "@/server/files/contracts";
 import {
-  HttpMalwareScanner,
   removePrivateObject,
   storePrivateObject,
 } from "@/server/files/security";
+import { PdfDocxParser } from "@/server/files/parser";
 import { verifyUploadIntake } from "@/server/files/intake-gate";
 
 export const maxDuration = 15;
@@ -44,20 +44,7 @@ export async function POST(request: Request) {
     const doc = documentType(fileName, value.type);
     const bytes = new Uint8Array(await value.arrayBuffer());
     validateDocumentMagic(bytes, doc);
-    const scan = await new HttpMalwareScanner().scan(
-      bytes,
-      fileName,
-      doc.contentType,
-    );
-    if (scan.status === "malicious")
-      return json(
-        {
-          ok: false,
-          code: "invalid_request",
-          message: "The uploaded file did not pass the malware scan.",
-        },
-        422,
-      );
+    await new PdfDocxParser().extractText(bytes, doc);
 
     const id = randomUUID();
     const storagePath = `${user.id}/${id}/${fileName}`;
@@ -69,7 +56,7 @@ export async function POST(request: Request) {
       fileName,
       fileSize: bytes.byteLength,
       contentType: doc.contentType,
-      scanStatus: scan.status,
+      scanStatus: "clean",
     });
     storedPath = null;
     return json(
@@ -83,7 +70,7 @@ export async function POST(request: Request) {
           scanStatus: record.scanStatus,
         },
       },
-      scan.status === "clean" ? 200 : 202,
+      200,
     );
   } catch (error) {
     if (storedPath) await removePrivateObject(storedPath);

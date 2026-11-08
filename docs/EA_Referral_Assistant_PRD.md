@@ -405,7 +405,7 @@ All mutations require authorization, server-side schema validation, version prec
 
 ## 17. Privacy, security and operational safeguards
 
-Implement: dedicated owner auth + MFA if available; email-verified applicant status; short-lived tokens; private object storage; validation of file extensions, MIME _and magic bytes_; AV/malware scan; file upload rate limits, CSRF/origin checks; structured validation; antivirus/sandbox handling; PDF/docx extraction timeout, decompression bomb protection; content-sanitized previews; encrypted provider credentials; audit trail of owner actions; short-lived signed URLs; error monitoring and backups; data retention policy with candidate deletion workflow. Avoid logging resume contents or email tokens. Allow admin to configure default deletion e.g. 90 days after job closure, subject to applicable legal requirements. Publish privacy/AI processing notice before upload.
+Implement: dedicated owner auth + MFA if available; email-verified applicant status; short-lived tokens; private object storage; validation of file extensions, MIME _and magic bytes_; file upload rate limits, CSRF/origin checks; structured validation; bounded PDF/DOCX parsing, active-content checks, and decompression bomb protection. These in-process checks do not replace antivirus software and must not be described as detecting all malware. Also use content-sanitized previews; encrypted provider credentials; audit trail of owner actions; short-lived signed URLs; error monitoring and backups; data retention policy with candidate deletion workflow. Avoid logging resume contents or email tokens. Allow admin to configure default deletion e.g. 90 days after job closure, subject to applicable legal requirements. Publish privacy/AI processing notice before upload.
 
 Email: verified outbound domain, provider webhooks, spam/bounce handling, per-recipient send logging, idempotency. Distinguish confirmed admin status from email delivery state. Throttle bulk notifications, opt-out for nonessential communications; transactional status messages only.
 
@@ -437,7 +437,7 @@ Job verification: respect official website access policy, never claim status fro
 
 **Phase 4 — Manual referral & messaging.** Portal prep screen with copy/download, owner-authenticated reserve/confirm transitions, preview-and-approve email batches, templates, outbox/retries, candidate status updates.
 
-**Phase 5 — Production hardening & pilot.** Accessibility/responsiveness, security review, file scanning, limits, deletion/retention, concurrency/load tests (hundreds of applicants), provider verification behavior, observability, deploy and limited real-user pilot.
+**Phase 5 — Production hardening & pilot.** Accessibility/responsiveness, security review, bounded file validation, limits, deletion/retention, concurrency/load tests (hundreds of applicants), provider verification behavior, observability, deploy and limited real-user pilot.
 
 **Definition of done per phase:** code, DB migration, unit + integration tests, responsive UI states, documented config changes, and a connected staging deployment using synthetic test data; no reliance on unfinished external integrations.
 

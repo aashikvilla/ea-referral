@@ -72,6 +72,21 @@ test("malformed PDF and truncated DOCX fail with a safe parser error", async () 
   );
 });
 
+test("PDF active-content actions are rejected before a file can be stored", async () => {
+  const bytes = Buffer.from(await fixture("resume-contact.pdf"));
+  const signature = Buffer.from("Alex");
+  const offset = bytes.indexOf(signature);
+  assert.notEqual(offset, -1);
+  bytes.set(Buffer.from("/JS "), offset);
+  await assert.rejects(
+    new PdfDocxParser().extractText(bytes, {
+      extension: "pdf",
+      contentType: "application/pdf",
+    }),
+    /could not be safely read/i,
+  );
+});
+
 test("DOCX expansion limits reject an archive bomb before extracting its text", async () => {
   const bytes = await fixture("resume-archive-bomb.docx");
   await assert.rejects(

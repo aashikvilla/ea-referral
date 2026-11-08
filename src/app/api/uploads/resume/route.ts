@@ -14,20 +14,12 @@ import {
 import { PdfDocxParser } from "@/server/files/parser";
 import { verifyUploadIntake } from "@/server/files/intake-gate";
 import {
-  HttpMalwareScanner,
   removePrivateObject,
   storePrivateObject,
 } from "@/server/files/security";
 import type { ResumeRecordInput } from "@/server/repository";
 
 export const maxDuration = 15;
-
-const EMPTY_FLAGS = {
-  firstName: false,
-  lastName: false,
-  email: false,
-  phone: false,
-};
 
 export async function POST(request: Request) {
   let storedPath: string | null = null;
@@ -56,36 +48,11 @@ export async function POST(request: Request) {
     const bytes = new Uint8Array(await value.arrayBuffer());
     validateDocumentMagic(bytes, doc);
 
-    const scan = await new HttpMalwareScanner().scan(
-      bytes,
-      fileName,
-      doc.contentType,
-    );
-    if (scan.status === "malicious")
-      return json(
-        {
-          ok: false,
-          code: "invalid_request",
-          message: "The uploaded file did not pass the malware scan.",
-        },
-        422,
-      );
-
-    let parsed: ParsedContact = {
-      fields: { firstName: null, lastName: null, email: null, phone: null },
-      flags: EMPTY_FLAGS,
-      ready: false,
-    };
-    let parserStatus: ResumeRecordInput["parserStatus"] = "unavailable";
-    if (scan.status === "clean") {
-      try {
-        const text = await new PdfDocxParser().extractText(bytes, doc);
-        parsed = parseContacts(text);
-        parserStatus = parsed.ready ? "ready" : "correction_required";
-      } catch {
-        parserStatus = "correction_required";
-      }
-    }
+    const text = await new PdfDocxParser().extractText(bytes, doc);
+    const parsed: ParsedContact = parseContacts(text);
+    const parserStatus: ResumeRecordInput["parserStatus"] = parsed.ready
+      ? "ready"
+      : "correction_required";
 
     const id = randomUUID();
     const storagePath = `${user.id}/${id}/${fileName}`;
@@ -101,7 +68,7 @@ export async function POST(request: Request) {
       version: 1,
       parserStatus,
       parsedFields: parsed.flags,
-      scanStatus: scan.status,
+      scanStatus: "clean",
     });
     storedPath = null;
     const missingFields = Object.entries(parsed.flags)
@@ -129,7 +96,7 @@ export async function POST(request: Request) {
           extracted: parsed.fields,
         },
       },
-      scan.status === "clean" ? 200 : 202,
+      200,
     );
   } catch (error) {
     if (storedPath) await removePrivateObject(storedPath);

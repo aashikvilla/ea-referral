@@ -2058,8 +2058,8 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
                   {app.resume.version}
                 </p>
                 <p className="mt-2 text-xs leading-5 text-[#87938c]">
-                  Private file downloads require a clean scan and, for resumes,
-                  completed readiness checks.
+                  Private file downloads require the built-in file checks and,
+                  for resumes, completed readiness checks.
                 </p>
                 <PrivateFileDownload fileId={app.resumeId} />
               </div>
@@ -2090,9 +2090,10 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
             </p>
             <div className="mt-3 rounded-xl bg-[#f7faf7] p-3 text-xs leading-5 text-[#687a70]">
               Running an assessment sends the resume text and job description to
-              the configured AI Gateway after email, phone, and candidate name
-              are redacted. The request runs only when you select the button
-              below.
+              OpenRouter after email, phone, and candidate name are redacted.
+              The request runs only when you select the button below. OpenRouter
+              may process it through a model provider whose retention and
+              training terms vary.
             </div>
             <button
               className={`${secondary} mt-3`}
