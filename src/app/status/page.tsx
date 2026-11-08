@@ -255,12 +255,19 @@ function DemoRequestStatus({
 function StatusPageFallback() {
   return (
     <CandidateShell>
-      <section className="mx-auto max-w-3xl px-5 pt-10 pb-10 sm:px-8 sm:pt-16">
-        <Eyebrow>Request status</Eyebrow>
-        <h1 className="mt-4 font-serif text-5xl leading-tight tracking-[-0.04em] text-[#142b4b]">
-          A clear update, when you need it.
-        </h1>
-        <p className="mt-6 text-[#526174]">Loading request status…</p>
+      <section
+        className="mx-auto max-w-3xl px-5 pt-10 pb-10 sm:px-8 sm:pt-16"
+        aria-busy="true"
+      >
+        <CandidateGuide
+          mood="checking"
+          layout="compact"
+          title="Checking your request."
+          message="I’m getting your private status page ready."
+        />
+        <p className="sr-only" role="status">
+          Loading request status.
+        </p>
       </section>
     </CandidateShell>
   );

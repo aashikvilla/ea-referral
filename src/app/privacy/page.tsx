@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   CandidateShell,
   Eyebrow,
@@ -7,94 +8,69 @@ export default function PrivacyPage() {
   return (
     <CandidateShell>
       <article className="mx-auto max-w-3xl px-5 pt-10 pb-8 sm:px-8 sm:pt-16">
-        <Eyebrow>Privacy, in plain language</Eyebrow>
-        <h1 className="mt-4 font-serif text-5xl leading-tight tracking-[-0.04em] text-[#173d32]">
-          Your information stays part of your request.
+        <Eyebrow>Privacy</Eyebrow>
+        <h1 className="mt-4 text-4xl leading-tight font-bold tracking-[-0.04em] text-[#142b4b] sm:text-5xl">
+          Your information, plainly.
         </h1>
-        <p className="mt-5 text-lg leading-8 text-[#52645d]">
-          This assistant helps one EA employee review referral requests. It is
-          not run by EA, and submitting a request does not apply for a job or
-          guarantee a referral.
+        <p className="mt-5 text-lg leading-8 text-[#526174]">
+          With Ashik is an independent personal referral assistant, not an EA
+          service. A request asks an employee to consider referring you; it is
+          not an application to EA. EA makes all hiring decisions.
         </p>
-        <div className="mt-9 rounded-2xl border border-[#d6e5dc] bg-[#eef5f0] p-5 text-sm leading-6 text-[#466558]">
-          In demo mode, details you enter and fictional requests stay in this
-          browser tab&apos;s memory and are cleared when the tab is closed or
-          refreshed. Selected files are not uploaded. In connected mode, data
-          submitted to the configured service is stored for review by the
-          employee who shared the link; use the deletion request below to ask
-          for its removal.
+
+        <div className="mt-8 rounded-2xl border border-[#d7e8f8] bg-[#f2f8ff] p-5 text-sm leading-6 text-[#405a76]">
+          If you submit a request, the contact and eligibility details you
+          provide, your resume, and any optional material are stored for review
+          by the employee who shared your link. If a service is unavailable, the
+          request is not saved.
         </div>
-        <div className="mt-10 space-y-9">
+
+        <div className="mt-9 space-y-8">
           <section>
-            <h2 className="text-xl font-semibold tracking-tight text-[#254a3d]">
-              What a real request may include
+            <h2 className="text-lg font-semibold text-[#1c3d64]">
+              Resume checks
             </h2>
-            <p className="mt-3 leading-7 text-[#5f6f67]">
-              If you choose to submit in a configured service, the request may
-              include the contact and eligibility details you provide, your
-              resume, and any optional links or supporting files you add. A
-              resume is requested only after the role and eligibility steps.
+            <p className="mt-2 leading-7 text-[#5d7087]">
+              A resume must pass a clean file scan and contain readable contact
+              details before it can be accepted. A successful check does not
+              guarantee that EA’s recruiting systems can read the document.
             </p>
           </section>
           <section>
-            <h2 className="text-xl font-semibold tracking-tight text-[#254a3d]">
-              Funnel measurement
+            <h2 className="text-lg font-semibold text-[#1c3d64]">
+              Optional material
             </h2>
-            <p className="mt-3 leading-7 text-[#5f6f67]">
-              In connected mode, after you sign in, the service records when a
-              role is viewed, intake starts, and quick checks pass. These
-              records use a pseudonymous account-and-role key, contain no resume
-              or contact details, and are used for rolling 30-day aggregate
-              counts. A completed deletion request also removes these funnel
-              events. Submitted requests and manually confirmed referrals are
-              counted from their application records.
+            <p className="mt-2 leading-7 text-[#5d7087]">
+              Notes, links, and work samples are optional. Adding them does not
+              improve an evidence score or guarantee a referral.
             </p>
           </section>
           <section>
-            <h2 className="text-xl font-semibold tracking-tight text-[#254a3d]">
-              Resume review
-            </h2>
-            <p className="mt-3 leading-7 text-[#5f6f67]">
-              A resume may be checked for whether your name, email, and phone
-              number are readable as text. Passing a local check cannot
-              guarantee that EA’s referral form will read the document
-              correctly. Any automated processing would need to be disclosed
-              before upload.
-            </p>
-          </section>
-          <section>
-            <h2 className="text-xl font-semibold tracking-tight text-[#254a3d]">
-              Optional work samples
-            </h2>
-            <p className="mt-3 leading-7 text-[#5f6f67]">
-              You can skip the optional showcase. In the intended flow, a note
-              is limited to 500 characters and supporting files together may be
-              no larger than 10 MiB. Skipping it does not count against you.
-            </p>
-          </section>
-          <section>
-            <h2 className="text-xl font-semibold tracking-tight text-[#254a3d]">
+            <h2 className="text-lg font-semibold text-[#1c3d64]">
               Status and email
             </h2>
-            <p className="mt-3 leading-7 text-[#5f6f67]">
-              A real status page must be protected by a link verified through
-              your email. This demo cannot send that email, so it does not
-              pretend to verify an address or reveal application status.
+            <p className="mt-2 leading-7 text-[#5d7087]">
+              Request status is available after you sign in with the verified
+              email used for your request. The service does not automatically
+              send a status email.
             </p>
           </section>
           <section>
-            <h2 className="text-xl font-semibold tracking-tight text-[#254a3d]">
-              Questions or deletion
-            </h2>
-            <p className="mt-3 leading-7 text-[#5f6f67]">
-              In connected mode, sign in with the verified email used for your
-              request, then submit a deletion request from your private status
-              page. The service has no configured retention period yet. In demo
-              mode, closing or refreshing this tab clears its in-memory sample
-              details.
+            <h2 className="text-lg font-semibold text-[#1c3d64]">Deletion</h2>
+            <p className="mt-2 leading-7 text-[#5d7087]">
+              Sign in with your verified email and use your status page to ask
+              for your information to be deleted. A retention period has not
+              been set.
             </p>
           </section>
         </div>
+
+        <Link
+          href="/"
+          className="mt-10 inline-flex min-h-11 items-center rounded-full border border-[#c9d9ea] px-5 text-sm font-semibold text-[#2456c7]"
+        >
+          Back to Ashik
+        </Link>
       </article>
     </CandidateShell>
   );

@@ -43,7 +43,15 @@ type LocalFile = { name: string; size: number; type: string };
 const MAX_EXTRAS = 10 * 1024 * 1024;
 
 export function IntakeFlow({ jobId }: { jobId: string }) {
-  const { jobs, slots, submitApplication, mode, session } = useWorkspace();
+  const {
+    jobs,
+    slots,
+    submitApplication,
+    mode,
+    session,
+    loading,
+    error: workspaceError,
+  } = useWorkspace();
   const job = jobs.find(
     (item) => item.id === jobId || item.canonicalJobId === jobId,
   );
@@ -89,8 +97,7 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
     currentTitle: "",
     relationship: "professional_network" as Relationship,
   });
-  const heardFrom =
-    "Personal referral link · no EA source option is assumed in this preview";
+  const heardFrom = "Personal referral link · source details are not collected";
 
   useEffect(() => {
     if (mode !== "connected" || !session?.user?.id || !job) return;
@@ -107,6 +114,41 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
     !useSample && localResume
       ? ["first name", "last name", "email address", "phone number"]
       : [];
+  if (mode === "connected" && loading)
+    return (
+      <CandidateShell>
+        <section
+          className="mx-auto max-w-3xl px-5 py-16 sm:px-8"
+          aria-busy="true"
+        >
+          <CandidateGuide
+            mood="checking"
+            layout="compact"
+            title="Checking request availability."
+            message="I’ll confirm the request service is ready before asking for any details."
+          />
+        </section>
+      </CandidateShell>
+    );
+  if (mode === "connected" && workspaceError)
+    return (
+      <CandidateShell>
+        <section className="mx-auto max-w-3xl px-5 py-12 sm:px-8">
+          <CandidateGuide
+            mood="unavailable"
+            layout="compact"
+            title="Requests aren’t available yet."
+            message="Please try again later. No request was created."
+          />
+          <Link
+            className="mt-7 inline-flex min-h-11 items-center rounded-full bg-[#2456c7] px-5 text-sm font-semibold text-white"
+            href="/"
+          >
+            Back home
+          </Link>
+        </section>
+      </CandidateShell>
+    );
   if (mode === "connected" && !session?.user)
     return (
       <CandidateShell>
@@ -134,11 +176,11 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
         <div className="mx-auto max-w-3xl px-5 py-16 sm:px-8">
           <Eyebrow>Referral request</Eyebrow>
           <h1 className="mt-4 font-serif text-4xl text-[#142b4b]">
-            We couldn’t find that sample role.
+            I can’t check that role right now.
           </h1>
           <p className="mt-4 text-[#526174]">
-            Try opening the sample flow from the home page. This demo can’t look
-            up live EA roles.
+            Requests aren’t available yet. Please try again later. No request
+            has been created.
           </p>
           <Link
             className="mt-7 inline-flex rounded-full bg-[#142b4b] px-5 py-3 text-sm font-semibold text-white"
@@ -202,7 +244,7 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
     resume: {
       title: "Your resume is the main thing.",
       message:
-        "Use the fictional sample to preview the demo. Extra notes and work samples are optional later.",
+        "A clear resume helps the employee review your experience. Extra notes and work samples are optional.",
     },
     showcase: {
       title: "A little more, only if you want.",
@@ -215,14 +257,13 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
         "Review your contact information and any optional material before you finish.",
     },
     complete: {
-      title: "Your preview is complete.",
-      message:
-        "The fictional request is available on this tab until it refreshes or closes. Nothing was sent to EA.",
+      title: "Your request is in.",
+      message: "Ashik will review your request and reply within two days.",
     },
     stopped: {
       title: "It’s okay to pause here.",
       message:
-        "This preview cannot confirm your eligibility in this case. Ask the employee who shared the link before continuing.",
+        "I can’t confirm this eligibility answer. Ask the employee who shared the link before continuing.",
     },
   };
 
@@ -685,21 +726,21 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
             <CandidateGuide
               mood="unavailable"
               title="Let’s pause before personal details."
-              message="No resume or contact details are requested for this role in the preview."
+              message="This role is not accepting a new referral request right now."
             />
             <div className="rounded-[1.5rem] border border-[#dce5ef] bg-white p-6 sm:p-9">
               <Eyebrow>Intake unavailable</Eyebrow>
               <h1 className="mt-3 text-3xl leading-tight font-bold tracking-[-0.035em] text-[#142b4b] sm:text-4xl">
-                This preview role can’t accept another request.
+                This role can’t accept another request.
               </h1>
               <p className="mt-4 max-w-2xl leading-7 text-[#526174]">
                 {slot?.status === "confirmed" || job.status === "referred"
-                  ? "A referral is already confirmed in this fictional example."
+                  ? "A referral has already been confirmed for this employee’s slot."
                   : slot?.status === "reserved" || job.status === "paused"
-                    ? "This fictional intake is paused while a referral slot is reserved."
-                    : "This fictional listing is marked closed."}{" "}
-                This status comes from sample data; check the listing directly
-                for current information.
+                    ? "This employee’s referral slot is currently reserved."
+                    : "This role is not available for a new referral request."}{" "}
+                You can check the listing directly for its current hiring
+                status.
               </p>
               <a
                 href={job.officialUrl}
@@ -715,8 +756,8 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
           <div className="mt-7 grid gap-5 lg:grid-cols-[0.78fr_1.22fr] lg:items-stretch">
             <CandidateGuide
               mood="unavailable"
-              title="We can’t verify this listing here."
-              message="That doesn’t mean the role is closed. A live role check isn’t connected in this preview."
+              title="I can’t verify this listing."
+              message="That doesn’t mean the role is closed. I’ll pause before asking for your details."
             />
             <div className="rounded-[1.5rem] border border-[#dce5ef] bg-white p-6 sm:p-9">
               <Eyebrow>Role status needs a check</Eyebrow>
@@ -724,9 +765,9 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                 Check the listing directly before you continue.
               </h1>
               <p className="mt-4 max-w-2xl leading-7 text-[#526174]">
-                This sample role’s availability is unknown. The live EA listing
-                checker is not connected, so the preview won’t ask for your
-                personal information yet.
+                The listing check didn’t return a current status. This does not
+                mean the role is closed, so I won’t ask for your personal
+                information yet.
               </p>
               <a
                 className="mt-6 inline-flex min-h-11 items-center rounded-full bg-[#2456c7] px-5 text-sm font-semibold text-white transition hover:bg-[#1b46aa]"
@@ -1074,8 +1115,8 @@ function EligibilityStep({
     <div className="space-y-6">
       <DemoNotice>
         These quick questions come before contact details or a resume. In this
-        preview, some answers pause the flow so you can see how it works; this
-        is not a statement of EA-wide hiring policy.
+        flow, some answers need the employee who shared the link to review them.
+        They are not statements of EA-wide hiring policy.
       </DemoNotice>
       <fieldset>
         <legend className="mb-3 text-sm font-semibold text-[#2c4460]">
@@ -1202,6 +1243,18 @@ function DetailsStep({
   }
   return (
     <div>
+      {connected && (
+        <p className="rounded-xl border border-[#d7e8f8] bg-[#f2f8ff] px-4 py-3 text-sm leading-6 text-[#405a76]">
+          If you submit, the employee who shared this link can review these
+          details and your resume. This does not apply to EA.{" "}
+          <Link
+            className="font-semibold text-[#2456c7] underline underline-offset-4"
+            href="/privacy"
+          >
+            Privacy details
+          </Link>
+        </p>
+      )}
       {!connected && (
         <DemoNotice>
           Your contact details are entered for the fictional sample application
@@ -1857,7 +1910,7 @@ function CompleteStep({
       </span>
       <p className="mt-5 text-sm leading-6 text-[#526174]">
         {connected
-          ? "Your request has been submitted for review. You have not applied to EA, and no referral has been submitted."
+          ? "Ashik will review your request and reply within two days. This request is not an EA job application, and no referral has been submitted."
           : "The fictional request has been added to this tab’s demo workspace. It has not been sent to EA, and no referral was submitted."}
       </p>
       <div className="mt-5 rounded-xl bg-[#f1f6fc] p-4 text-sm">
