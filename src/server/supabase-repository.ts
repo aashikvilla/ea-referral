@@ -9,7 +9,7 @@ import type {
   UpdateApplicationInput,
   UpdateJobInput,
   FunnelMetrics,
-} from "@/lib/demo/types";
+} from "@/lib/domain/types";
 import { createHmac } from "node:crypto";
 import "server-only";
 import { requireServerConfig } from "@/server/config";

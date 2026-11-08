@@ -1,13 +1,13 @@
 # Decisions
 
-## Keep candidate routes server-rendered
+## Require connected services for application workflows
 
-`CandidateShell` is the client boundary because it reads workspace context. Server-rendered page content can pass through its `children` slot.
+The deployed product uses `EA_REFERRAL_MODE=connected`. If configuration is missing or the mode differs, server operations remain unavailable. Do not add local fixture fallbacks to user-facing routes.
 
-## Keep deployments in demo mode
+## Keep decisions with the owner
 
-Vercel uses `EA_REFERRAL_MODE=demo`. No Supabase secret, scanner credential, AI Gateway key, or Resend key is needed for the fictional demo, and connected intake remains unavailable until provider setup and integration checks are complete.
+Evidence scoring and AI assessment are advisory only. The owner makes referral decisions and submits manually through EA’s portal.
 
 ## Validate exact Vercel-generated origins
 
-Same-origin checks accept the configured `APP_ORIGIN` plus the exact host in Vercel's trusted `VERCEL_URL` system variable. This enables preview origins without widening the allowlist to arbitrary `vercel.app` subdomains.
+Same-origin checks accept the configured `APP_ORIGIN` plus the exact host in Vercel's trusted `VERCEL_URL` system variable. Preview requests do not widen the allowlist to arbitrary `vercel.app` subdomains.

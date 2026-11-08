@@ -7,14 +7,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useWorkspace } from "@/lib/demo/workspace";
+import { useWorkspace } from "@/lib/workspace";
 import {
   readNotificationPreview,
   readNotificationSendResult,
   type NotificationPreviewData,
   type NotificationSendResult,
 } from "@/lib/domain/notifications-ui";
-import type { Application } from "@/lib/demo/types";
 
 const card =
   "rounded-2xl border border-[#dce5df] bg-white shadow-[0_3px_12px_rgba(24,56,47,0.035)]";
@@ -77,18 +76,8 @@ function errorMessage(body: unknown, fallback: string): string {
     : fallback;
 }
 
-function localMessage(
-  group: "remaining" | "referred",
-  firstName: string,
-  jobTitle: string,
-) {
-  return group === "referred"
-    ? `Hi ${firstName},\n\nI confirmed your referral submission for ${jobTitle} through EA’s referral portal. This does not guarantee an interview or offer.\n\nBest,\nYour EA contact`
-    : `Hi ${firstName},\n\nThank you for your interest in ${jobTitle}. I confirmed a referral for this opening and can refer one person per EA job ID, so I’m unable to refer additional candidates for this role. I appreciate the time you took to apply.\n\nBest,\nYour EA contact`;
-}
-
 export default function NotificationReview() {
-  const { jobs, candidates, applications, mode, session } = useWorkspace();
+  const { jobs, session } = useWorkspace();
   const [jobId, setJobId] = useState("");
   const [group, setGroup] = useState<"remaining" | "referred">("remaining");
   const [preview, setPreview] = useState<NotificationPreviewData | null>(null);
@@ -104,7 +93,7 @@ export default function NotificationReview() {
     NotificationPreviewData["recipients"]
   >([]);
   const previewRequestId = useRef(0);
-  const connectedOwner = mode === "connected" && session?.isAdmin === true;
+  const connectedOwner = session?.isAdmin === true;
 
   const loadPreview = useCallback(async () => {
     if (!connectedOwner) return;
@@ -202,68 +191,8 @@ export default function NotificationReview() {
     }
   }
 
-  const localRecipients: Array<{
-    app: Application;
-    firstName: string;
-    email: string;
-    title: string;
-    body: string;
-  }> = (() => {
-    const scoped = applications.filter((app) => !jobId || app.jobId === jobId);
-    const confirmed = scoped.filter(
-      (app) => app.status === "referral_confirmed",
-    );
-    const source =
-      group === "referred"
-        ? confirmed
-        : scoped.filter(
-            (app) =>
-              ![
-                "referral_confirmed",
-                "not_selected",
-                "slot_filled_other",
-                "selected_pending_submission",
-              ].includes(app.status),
-          );
-    const seen = new Set<string>();
-    return source.flatMap((app) => {
-      const candidate = candidates.find((item) => item.id === app.candidateId);
-      const job = jobs.find((item) => item.id === app.jobId);
-      const email = candidate?.email.trim().toLowerCase();
-      if (!candidate || !job || !email || seen.has(email)) return [];
-      seen.add(email);
-      return [
-        {
-          app,
-          firstName: candidate.firstName,
-          email: candidate.email,
-          title: job.title,
-          body: localMessage(group, candidate.firstName || "there", job.title),
-        },
-      ];
-    });
-  })();
-
-  const displayedRecipients =
-    mode === "demo"
-      ? localRecipients.map((recipient) => ({
-          applicationId: recipient.app.id,
-          firstName: recipient.firstName,
-          email: recipient.email,
-          jobTitle: recipient.title,
-          subject:
-            group === "referred"
-              ? `Referral confirmed for ${recipient.title}`
-              : `An update about ${recipient.title}`,
-          body: recipient.body,
-          status: recipient.app.status,
-          deliveryStatus: "ready" as const,
-        }))
-      : connectedOwner
-        ? (preview?.recipients ?? [])
-        : [];
-  const readyCount =
-    mode === "demo" ? localRecipients.length : (preview?.eligibleCount ?? 0);
+  const displayedRecipients = connectedOwner ? (preview?.recipients ?? []) : [];
+  const readyCount = preview?.eligibleCount ?? 0;
 
   return (
     <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
@@ -275,20 +204,12 @@ export default function NotificationReview() {
           Notification review
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6b7b73]">
-          {mode === "demo"
-            ? "Preview fictional local messages. The browser demo never sends email."
-            : "Review current database recipients and message text before approving email delivery."}
+          Review current database recipients and message text before approving
+          email delivery.
         </p>
       </div>
 
-      {mode === "demo" ? (
-        <div className="mb-5">
-          <Notice warning>
-            Demo mode uses fictional local records only. Sending is disabled and
-            nothing is queued or delivered.
-          </Notice>
-        </div>
-      ) : !connectedOwner ? (
+      {!connectedOwner ? (
         <div className="mb-5">
           <Notice warning>
             Notification review requires a verified owner session. No messages
@@ -340,23 +261,22 @@ export default function NotificationReview() {
             </select>
           </label>
 
-          {mode === "connected" && previewLoading ? (
+          {previewLoading ? (
             <p className="text-sm text-[#74827a]" role="status">
               Loading current recipients…
             </p>
           ) : null}
-          {mode === "connected" && previewError ? (
+          {previewError ? (
             <p className="text-sm text-[#984b3e]" role="alert">
               {previewError}
             </p>
           ) : null}
-          {mode === "connected" && !connectedOwner ? (
+          {!connectedOwner ? (
             <p className="text-sm text-[#74827a]">
               Sign in with the verified owner account to load recipients.
             </p>
           ) : null}
-          {mode === "connected" &&
-          connectedOwner &&
+          {connectedOwner &&
           !previewLoading &&
           !previewError &&
           !displayedRecipients.length ? (
@@ -365,9 +285,7 @@ export default function NotificationReview() {
             </p>
           ) : null}
           <p className="mt-3 mb-2 text-xs text-[#87938c]">
-            {mode === "demo"
-              ? `${localRecipients.length} fictional sample recipients`
-              : `${preview?.eligibleCount ?? 0} ready · ${preview?.alreadySentCount ?? 0} already sent · ${preview?.inProgressCount ?? 0} in progress`}
+            {`${preview?.eligibleCount ?? 0} ready · ${preview?.alreadySentCount ?? 0} already sent · ${preview?.inProgressCount ?? 0} in progress`}
           </p>
           <div className="max-h-[520px] space-y-2 overflow-auto">
             {displayedRecipients.map((recipient) => (
@@ -379,14 +297,12 @@ export default function NotificationReview() {
                   {recipient.firstName} · {recipient.jobTitle}
                 </p>
                 <p className="mt-1 text-xs text-[#87938c]">{recipient.email}</p>
-                {mode === "connected" && (
-                  <div className="mt-2">
-                    <DeliveryPill
-                      label={recipient.deliveryStatus.replaceAll("_", " ")}
-                      sent={recipient.deliveryStatus === "already_sent"}
-                    />
-                  </div>
-                )}
+                <div className="mt-2">
+                  <DeliveryPill
+                    label={recipient.deliveryStatus.replaceAll("_", " ")}
+                    sent={recipient.deliveryStatus === "already_sent"}
+                  />
+                </div>
               </div>
             ))}
           </div>
@@ -394,23 +310,23 @@ export default function NotificationReview() {
 
         <div className="space-y-5">
           <Panel title="Message previews">
-            {mode === "connected" && previewLoading ? (
+            {previewLoading ? (
               <p className="text-sm text-[#74827a]" role="status">
                 Loading server-generated message previews…
               </p>
             ) : null}
-            {mode === "connected" && previewError ? (
+            {previewError ? (
               <Notice warning>
                 {previewError} No send action is available until a current
                 preview loads.
               </Notice>
             ) : null}
-            {mode === "connected" && !connectedOwner ? (
+            {!connectedOwner ? (
               <p className="text-sm text-[#74827a]">
                 Owner access is required to load server-generated messages.
               </p>
             ) : null}
-            {mode === "connected" && preview && !preview.providerConfigured && (
+            {preview && !preview.providerConfigured && (
               <div className="mb-4">
                 <Notice warning>
                   Email sending is not configured. The server will not queue or
@@ -418,8 +334,7 @@ export default function NotificationReview() {
                 </Notice>
               </div>
             )}
-            {!displayedRecipients.length &&
-            !(mode === "connected" && previewLoading) ? (
+            {!displayedRecipients.length && !previewLoading ? (
               <p className="text-sm text-[#74827a]">
                 No message previews for this group.
               </p>
@@ -451,11 +366,9 @@ export default function NotificationReview() {
             </div>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-[#87938c]">
-                {mode === "demo"
-                  ? "Local sample preview · no messages queued"
-                  : "Server preview is bound to this recipient and message snapshot."}
+                Server preview is bound to this recipient and message snapshot.
               </p>
-              {mode === "connected" && connectedOwner && (
+              {connectedOwner && (
                 <div className="flex gap-2">
                   <button
                     className={secondary}
@@ -477,15 +390,6 @@ export default function NotificationReview() {
                     {sending ? "Sending…" : "Review and approve send"}
                   </button>
                 </div>
-              )}
-              {mode === "demo" && (
-                <button
-                  className={button}
-                  disabled
-                  title="Demo mode never sends email"
-                >
-                  Send disabled
-                </button>
               )}
             </div>
           </Panel>

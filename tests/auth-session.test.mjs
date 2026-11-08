@@ -17,7 +17,7 @@ const OTHER_ID = "00000000-0000-4000-8000-000000000002";
 
 function configure(mode = "connected") {
   process.env.EA_REFERRAL_MODE = mode;
-  process.env.SUPABASE_URL = "https://demo-project.supabase.co";
+  process.env.SUPABASE_URL = "https://integration-test.supabase.co";
   process.env.SUPABASE_PUBLISHABLE_KEY = "sb_publishable_test_value";
   process.env.SUPABASE_SECRET_KEY = "sb_secret_test_value";
   process.env.ADMIN_USER_ID = ADMIN_ID;
@@ -148,12 +148,12 @@ test("same-origin mutations reject unsafe configured protocols", () => {
   );
 });
 
-test("demo mode reports no session and does not call the auth provider", async () => {
-  configure("demo");
+test("disabled mode reports no session and does not call the auth provider", async () => {
+  configure("disabled");
   let called = false;
   globalThis.fetch = async () => {
     called = true;
-    throw new Error("Demo session checks must not call Supabase.");
+    throw new Error("Disabled-mode session checks must not call Supabase.");
   };
   assert.deepEqual(
     await getSessionSummary(
@@ -171,7 +171,7 @@ test("verified non-admin session is authenticated but never marked as admin", as
     calls += 1;
     assert.equal(
       String(input),
-      "https://demo-project.supabase.co/auth/v1/user",
+      "https://integration-test.supabase.co/auth/v1/user",
     );
     assert.equal(init.headers.Authorization, "Bearer verified.candidate.token");
     return Response.json({

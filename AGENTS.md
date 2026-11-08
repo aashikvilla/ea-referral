@@ -1,16 +1,16 @@
 # Project instructions
 
-This project is an interactive demo of a fictional EA referral assistant, with connected-mode auth, API, repository, file processing, and database migration groundwork. The screen scope follows [`docs/EA_Referral_Assistant_PRD.md`](docs/EA_Referral_Assistant_PRD.md). Demo mode is local-only; connected mode is not ready for real applicants.
+This project is a connected single-owner EA referral assistant. The screen scope follows [`docs/EA_Referral_Assistant_PRD.md`](docs/EA_Referral_Assistant_PRD.md). User-facing flows must use the configured providers and fail closed when unavailable; do not add in-memory fake records or simulated submissions.
 
 ## Product scope and boundaries
 
-- Build the candidate intake and status experience and the private-owner review experience as interactive demo flows using invented data. Keep connected-mode APIs guarded and explicit about incomplete capabilities.
-- Clearly identify demo actions and data as local/in-memory. Do not claim that a request was sent, a resume was uploaded, a candidate was emailed, or a referral was submitted to EA.
+- Build candidate intake, candidate status, and private-owner review as connected flows. Keep APIs guarded and make provider/configuration failures explicit.
+- Report successful uploads, sends, or submissions only after the connected provider confirms the operation. EA portal submission remains a manual owner action.
 - Do not automate EA portal submissions, scrape LinkedIn, read LinkedIn messages, or invent EA policies/options. Treat unverified EA availability as unknown and keep manual owner review available.
-- Auth token validation, owner checks, repository/API code, and SQL migration groundwork exist. Connected resume and supporting-file upload, bounded extraction for supported text-based PDF/DOCX files, verified application submission, and owner review routes are implemented but need configured providers and integration verification. Candidate email-code sign-in UI/API exists; Supabase OTP delivery configuration, separate status-link delivery, and migration deployment are outstanding.
-- OCR, email sending, AI analysis, and deployment are not implemented. Malware scanning fails closed to quarantine unless a configured scanner verifies the uploaded bytes. Resume replacement must remain scoped to the authenticated candidate's own job application and an explicit owner correction request; replacement invalidates the prior evidence assessment. Adding credentials alone does not make connected intake production-ready. Keep these boundaries explicit and do not add provider credentials or secrets.
+- Auth token validation, owner checks, repository/API code, and database migrations exist. Connected uploads, bounded extraction for supported text-based PDF/DOCX files, submission, and owner review need provider and end-to-end verification. Supabase email-code sign-in needs Auth delivery setup; a separate status-link delivery flow is unavailable.
+- Malware scanning fails closed to quarantine unless a configured scanner verifies uploaded bytes. Resume replacement stays scoped to the authenticated candidate's own job application and an explicit owner correction request; replacement invalidates the prior evidence assessment. Credentials belong in scoped provider settings, never in source control or browser-visible variables.
 - Optional showcase participation must not increase a candidate's evidence score. The score is a documented evidence coverage heuristic; it is not a hiring or referral probability and never makes a decision for the owner.
-- Keep fictional fixtures and reserved `.invalid` email addresses. Do not add real candidate personal data.
+- Tests may use synthetic data and reserved `.invalid` email addresses. Do not add real candidate personal data or synthetic records to user-facing flows.
 
 ## Engineering conventions
 

@@ -8,7 +8,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { getReferralRepository } from "@/server/supabase-repository";
-import type { ApplicationStatus } from "@/lib/demo/types";
+import type { ApplicationStatus } from "@/lib/domain/types";
 
 const decisions: readonly ApplicationStatus[] = [
   "processing",

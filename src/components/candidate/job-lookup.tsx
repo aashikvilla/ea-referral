@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { GuideMood } from "@/components/candidate/candidate-guide";
-import { useWorkspace } from "@/lib/demo/workspace";
+import { useWorkspace } from "@/lib/workspace";
 import { isIntakeAvailable } from "@/lib/domain/slots";
 import { normalizeCanonicalJobId } from "@/lib/domain/validation";
 
@@ -21,7 +21,7 @@ type JobLookupProps = {
 
 export function JobLookup({ onGuideUpdate }: JobLookupProps) {
   const router = useRouter();
-  const { jobs, slots, mode, loading, error: workspaceError } = useWorkspace();
+  const { jobs, slots, loading, error: workspaceError } = useWorkspace();
   const [value, setValue] = useState("");
   const [message, setMessage] = useState("");
   const [tone, setTone] = useState<"error" | "info">("error");
@@ -94,14 +94,12 @@ export function JobLookup({ onGuideUpdate }: JobLookupProps) {
         return;
       }
 
-      if (mode !== "connected" || loading || workspaceError) {
+      if (loading || workspaceError) {
         showMessage(
           "unavailable",
-          workspaceError || mode !== "connected"
-            ? "Requests aren’t available right now. Please try again later."
-            : loading
-              ? "I’m still checking the referral service. Please try again shortly."
-              : "Requests aren’t available right now. Please try again later.",
+          loading
+            ? "I’m still checking the referral service. Please try again shortly."
+            : "Requests aren’t available right now. Please try again later.",
           "info",
         );
         return;

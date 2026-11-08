@@ -128,17 +128,6 @@ export function PageHeading({
   );
 }
 
-export function DemoBanner({ compact = false }: { compact?: boolean }) {
-  return (
-    <div className="border-b border-amber-300/60 bg-[#fff8e8] px-4 py-2.5 text-center text-xs leading-5 text-amber-950 sm:text-sm">
-      <span className="font-bold">Sample workspace</span> · fictional records
-      only · changes stay in this tab’s memory and clear on reload
-      {!compact &&
-        ". No data is sent, no email is sent, and no referral is submitted."}
-    </div>
-  );
-}
-
 export function Icon({
   name,
   className = "size-5",

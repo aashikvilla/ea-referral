@@ -2,7 +2,7 @@ import type {
   ApplicationStatus,
   EligibilityAnswers,
   Job,
-} from "@/lib/demo/types";
+} from "@/lib/domain/types";
 
 export type EligibilityOutcome =
   | "eligible"

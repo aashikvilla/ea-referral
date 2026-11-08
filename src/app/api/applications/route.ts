@@ -4,7 +4,7 @@ import type {
   CreateApplicationInput,
   EligibilityAnswers,
   Relationship,
-} from "@/lib/demo/types";
+} from "@/lib/domain/types";
 import { getReferralRepository } from "@/server/supabase-repository";
 import { SUPPORTING_TOTAL_MAX_BYTES } from "@/server/files/contracts";
 import {

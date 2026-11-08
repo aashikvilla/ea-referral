@@ -2,7 +2,7 @@ import type {
   Application,
   Candidate,
   CreateApplicationInput,
-} from "@/lib/demo/types";
+} from "@/lib/domain/types";
 
 export const MAX_NOTE_LENGTH = 500;
 export const MAX_SHOWCASE_FILE_BYTES = 10 * 1024 * 1024;

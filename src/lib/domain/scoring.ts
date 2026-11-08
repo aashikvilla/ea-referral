@@ -1,4 +1,4 @@
-import type { MatchBreakdown } from "@/lib/demo/types";
+import type { MatchBreakdown } from "@/lib/domain/types";
 
 /** Evidence coverage only; it is not a hiring or referral probability. */
 const categoryWeights: Record<keyof MatchBreakdown, number> = {

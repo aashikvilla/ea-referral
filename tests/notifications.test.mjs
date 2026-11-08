@@ -95,7 +95,7 @@ function fixtureRepository() {
 
 function configureEmail() {
   process.env.EA_REFERRAL_MODE = "connected";
-  process.env.SUPABASE_URL = "https://demo-project.supabase.co";
+  process.env.SUPABASE_URL = "https://integration-test.supabase.co";
   process.env.SUPABASE_PUBLISHABLE_KEY = "sb_publishable_test_value";
   process.env.SUPABASE_SECRET_KEY = "sb_secret_test_value";
   process.env.ADMIN_USER_ID = "00000000-0000-4000-8000-000000000001";

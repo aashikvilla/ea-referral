@@ -1,7 +1,12 @@
-import type { ActivityEvent, Application, Candidate, Job } from "./types";
+import type {
+  ActivityEvent,
+  Application,
+  Candidate,
+  Job,
+} from "../../src/lib/domain/types";
 
 // All records are invented examples. Addresses use the reserved .invalid domain.
-export const demoJobs: Job[] = [
+export const testJobs: Job[] = [
   {
     id: "job-508741",
     canonicalJobId: "EA:508741",
@@ -17,8 +22,7 @@ export const demoJobs: Job[] = [
     availability: "open",
     availabilityCheckedAt: "2026-10-22T15:30:00.000Z",
     availabilitySource: "manual",
-    availabilityReason:
-      "Fictional sample status entered by the workspace owner.",
+    availabilityReason: "Test availability state entered by the owner.",
     createdAt: "2026-10-18T15:30:00.000Z",
     updatedAt: "2026-10-22T15:30:00.000Z",
   },
@@ -55,22 +59,21 @@ export const demoJobs: Job[] = [
     availability: "open",
     availabilityCheckedAt: "2026-10-17T12:00:00.000Z",
     availabilitySource: "manual",
-    availabilityReason:
-      "Fictional sample status entered by the workspace owner.",
+    availabilityReason: "Test availability state entered by the owner.",
     createdAt: "2026-10-12T12:00:00.000Z",
     updatedAt: "2026-10-21T17:15:00.000Z",
   },
 ];
 
-export function getDemoJobsForSession(checkedAt: string): Job[] {
-  return demoJobs.map((job) =>
+export function withCheckedAvailability(checkedAt: string): Job[] {
+  return testJobs.map((job) =>
     job.status === "open" && job.availability === "open"
       ? { ...job, availabilityCheckedAt: checkedAt }
       : job,
   );
 }
 
-export const demoCandidates: Candidate[] = [
+export const testCandidates: Candidate[] = [
   {
     id: "candidate-amelia",
     firstName: "Amelia",
@@ -117,7 +120,7 @@ export const demoCandidates: Candidate[] = [
   },
 ];
 
-export const demoApplications: Application[] = [
+export const testApplications: Application[] = [
   {
     id: "app-amelia",
     jobId: "job-508741",
@@ -393,7 +396,7 @@ export const demoApplications: Application[] = [
   },
 ];
 
-export const demoActivity: ActivityEvent[] = [
+export const testActivity: ActivityEvent[] = [
   {
     id: "event-1",
     at: "2026-10-23T09:10:00.000Z",

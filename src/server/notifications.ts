@@ -1,6 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { Application, Job } from "@/lib/demo/types";
+import type { Application, Job } from "@/lib/domain/types";
 import { ApiError } from "@/server/http";
 import type {
   NewNotificationOutboxEntry,

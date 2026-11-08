@@ -8,22 +8,13 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { useWorkspace } from "@/lib/demo/workspace";
-import {
-  relationshipOptions,
-  relationshipOptionsVerified,
-} from "@/lib/demo/fixtures";
-import type {
-  CreateApplicationInput,
-  EligibilityAnswers,
-  Job,
-  Relationship,
-} from "@/lib/demo/types";
+import { useWorkspace } from "@/lib/workspace";
+import type { EligibilityAnswers, Job, Relationship } from "@/lib/domain/types";
 import {
   CandidateGuide,
   type GuideMood,
 } from "@/components/candidate/candidate-guide";
-import { CandidateShell, DemoNotice, Eyebrow } from "./candidate-shell";
+import { CandidateShell, Eyebrow } from "./candidate-shell";
 
 type Step =
   | "eligibility"
@@ -41,13 +32,21 @@ type StopReason =
   | "eligibility_review";
 type LocalFile = { name: string; size: number; type: string };
 const MAX_EXTRAS = 10 * 1024 * 1024;
+const MAX_FILE_SIZE = 4 * 1024 * 1024;
+const relationshipOptions = [
+  { value: "current_ea_employee", label: "Current EA employee" },
+  { value: "customer_client", label: "Customer or client" },
+  { value: "family_member", label: "Family member" },
+  { value: "former_colleague", label: "Former colleague" },
+  { value: "friend", label: "Friend" },
+  { value: "professional_network", label: "Professional network" },
+  { value: "other", label: "Other" },
+] as const;
 
 export function IntakeFlow({ jobId }: { jobId: string }) {
   const {
     jobs,
     slots,
-    submitApplication,
-    mode,
     session,
     loading,
     error: workspaceError,
@@ -59,7 +58,6 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
   const [error, setError] = useState("");
   const [submittedId, setSubmittedId] = useState("");
   const [stopReason, setStopReason] = useState<StopReason>("already_applied");
-  const [useSample, setUseSample] = useState(false);
   const [localResume, setLocalResume] = useState<LocalFile | null>(null);
   const [resumeId, setResumeId] = useState<string | null>(null);
   const [resumeReadiness, setResumeReadiness] = useState<{
@@ -100,21 +98,17 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
   const heardFrom = "Personal referral link · source details are not collected";
 
   useEffect(() => {
-    if (mode !== "connected" || !session?.user?.id || !job) return;
+    if (!session?.user?.id || !job) return;
     void fetch("/api/analytics/intake", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
       body: JSON.stringify({ jobId: job.id, event: "candidate_role_view" }),
     }).catch(() => undefined);
-  }, [job, mode, session?.user?.id]);
+  }, [job, session?.user?.id]);
 
   const totalExtras = extraFiles.reduce((sum, file) => sum + file.size, 0);
-  const badFields =
-    !useSample && localResume
-      ? ["first name", "last name", "email address", "phone number"]
-      : [];
-  if (mode === "connected" && loading)
+  if (loading)
     return (
       <CandidateShell>
         <section
@@ -130,7 +124,7 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
         </section>
       </CandidateShell>
     );
-  if (mode === "connected" && workspaceError)
+  if (workspaceError)
     return (
       <CandidateShell>
         <section className="mx-auto max-w-3xl px-5 py-12 sm:px-8">
@@ -149,7 +143,7 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
         </section>
       </CandidateShell>
     );
-  if (mode === "connected" && !session?.user)
+  if (!session?.user)
     return (
       <CandidateShell>
         <section className="mx-auto max-w-3xl px-5 py-16 sm:px-8">
@@ -283,16 +277,11 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
       event.target.value = "";
       return;
     }
-    if (file.size > (mode === "connected" ? 4 * 1024 * 1024 : MAX_EXTRAS)) {
-      setError(
-        mode === "connected"
-          ? "Resume files must be 4 MiB or smaller."
-          : "This browser demo accepts resume selections up to 10 MiB.",
-      );
+    if (file.size > MAX_FILE_SIZE) {
+      setError("Resume files must be 4 MiB or smaller.");
       event.target.value = "";
       return;
     }
-    setUseSample(false);
     setLocalResume({
       name: file.name,
       size: file.size,
@@ -300,43 +289,40 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
     });
     setResumeId(null);
     setResumeReadiness(null);
-    if (mode === "connected") {
-      setUploading(true);
-      const form = new FormData();
-      form.set("file", file);
-      form.set("jobId", job?.id ?? jobId);
-      form.set("eligibility", JSON.stringify(answers));
-      void fetch("/api/uploads/resume", { method: "POST", body: form })
-        .then(async (response) => {
-          const value = await response.json();
-          if (!response.ok)
-            throw new Error(
-              value.message || "Resume upload could not be completed.",
-            );
-          const resume = value.resume;
-          setResumeId(resume.id);
-          setResumeReadiness({
-            ready:
-              resume.readiness?.ready === true &&
-              resume.parserStatus === "ready",
-            missingFields: resume.readiness?.missingFields ?? [],
-            parserStatus: resume.parserStatus,
-          });
-          setError(
-            resume.parserStatus === "quarantined"
-              ? "The file is quarantined because a clean scan is not available. Try again when file scanning is configured."
-              : "",
+    setUploading(true);
+    const form = new FormData();
+    form.set("file", file);
+    form.set("jobId", job?.id ?? jobId);
+    form.set("eligibility", JSON.stringify(answers));
+    void fetch("/api/uploads/resume", { method: "POST", body: form })
+      .then(async (response) => {
+        const value = await response.json();
+        if (!response.ok)
+          throw new Error(
+            value.message || "Resume upload could not be completed.",
           );
-        })
-        .catch((reason: unknown) =>
-          setError(
-            reason instanceof Error
-              ? reason.message
-              : "Resume upload could not be completed.",
-          ),
-        )
-        .finally(() => setUploading(false));
-    }
+        const resume = value.resume;
+        setResumeId(resume.id);
+        setResumeReadiness({
+          ready:
+            resume.readiness?.ready === true && resume.parserStatus === "ready",
+          missingFields: resume.readiness?.missingFields ?? [],
+          parserStatus: resume.parserStatus,
+        });
+        setError(
+          resume.parserStatus === "quarantined"
+            ? "The file is quarantined because a clean scan is not available. Try again when file scanning is configured."
+            : "",
+        );
+      })
+      .catch((reason: unknown) =>
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Resume upload could not be completed.",
+        ),
+      )
+      .finally(() => setUploading(false));
     setError("");
   }
   function handleExtraFiles(event: ChangeEvent<HTMLInputElement>) {
@@ -349,22 +335,12 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
     const next = [...extraFiles, ...added];
     const hasUnsupported = added.some(
       (file) =>
-        !(
-          mode === "connected"
-            ? ["pdf", "docx"]
-            : ["pdf", "docx", "txt", "png", "jpg", "jpeg", "webp"]
-        ).includes(file.name.split(".").pop()?.toLowerCase() ?? ""),
+        !["pdf", "docx"].includes(
+          file.name.split(".").pop()?.toLowerCase() ?? "",
+        ),
     );
-    if (hasUnsupported)
-      setError(
-        mode === "connected"
-          ? "Choose PDF or DOCX files only."
-          : "Choose PDF, DOCX, TXT, or common image files only.",
-      );
-    else if (
-      mode === "connected" &&
-      chosen.some((file) => file.size > 4 * 1024 * 1024)
-    )
+    if (hasUnsupported) setError("Choose PDF or DOCX files only.");
+    else if (chosen.some((file) => file.size > MAX_FILE_SIZE))
       setError("Each supporting file must be 4 MiB or smaller.");
     else if (next.reduce((sum, file) => sum + file.size, 0) > MAX_EXTRAS)
       setError(
@@ -373,49 +349,46 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
     else {
       const startIndex = extraFiles.length;
       setExtraFiles(next);
-      if (mode === "connected") {
-        setUploading(true);
-        void Promise.all(
-          chosen.map(async (file, index) => {
-            const form = new FormData();
-            form.set("file", file);
-            form.set("jobId", job?.id ?? jobId);
-            form.set("eligibility", JSON.stringify(answers));
-            const response = await fetch("/api/uploads/supporting", {
-              method: "POST",
-              body: form,
-            });
-            const value = await response.json();
-            if (
-              !response.ok ||
-              !value.file?.id ||
-              value.file.scanStatus !== "clean"
-            )
-              throw new Error(
-                value.message ||
-                  "A supporting file is not available for review.",
-              );
-            return { index: startIndex + index, id: value.file.id as string };
-          }),
-        )
-          .then((uploaded) =>
-            setExtraFiles((current) =>
-              current.map((item, index) => {
-                const found = uploaded.find((upload) => upload.index === index);
-                return found ? { ...item, id: found.id } : item;
-              }),
-            ),
+      setUploading(true);
+      void Promise.all(
+        chosen.map(async (file, index) => {
+          const form = new FormData();
+          form.set("file", file);
+          form.set("jobId", job?.id ?? jobId);
+          form.set("eligibility", JSON.stringify(answers));
+          const response = await fetch("/api/uploads/supporting", {
+            method: "POST",
+            body: form,
+          });
+          const value = await response.json();
+          if (
+            !response.ok ||
+            !value.file?.id ||
+            value.file.scanStatus !== "clean"
           )
-          .catch((reason: unknown) => {
-            setExtraFiles((current) => current.filter((file) => file.id));
-            setError(
-              reason instanceof Error
-                ? reason.message
-                : "Supporting file upload failed.",
+            throw new Error(
+              value.message || "A supporting file is not available for review.",
             );
-          })
-          .finally(() => setUploading(false));
-      }
+          return { index: startIndex + index, id: value.file.id as string };
+        }),
+      )
+        .then((uploaded) =>
+          setExtraFiles((current) =>
+            current.map((item, index) => {
+              const found = uploaded.find((upload) => upload.index === index);
+              return found ? { ...item, id: found.id } : item;
+            }),
+          ),
+        )
+        .catch((reason: unknown) => {
+          setExtraFiles((current) => current.filter((file) => file.id));
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Supporting file upload failed.",
+          );
+        })
+        .finally(() => setUploading(false));
       setError("");
     }
     event.target.value = "";
@@ -429,14 +402,12 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
       setError("Please answer each question to continue.");
       return;
     }
-    if (mode === "connected") {
-      void fetch("/api/analytics/intake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ jobId: job.id, event: "intake_started" }),
-      }).catch(() => undefined);
-    }
+    void fetch("/api/analytics/intake", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ jobId: job.id, event: "intake_started" }),
+    }).catch(() => undefined);
     if (answers.previouslyReferred) {
       setStopReason("already_referred");
       setStep("stopped");
@@ -465,29 +436,25 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
       setStep("stopped");
       return;
     }
-    if (mode === "connected") {
-      void fetch("/api/analytics/intake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          jobId: job.id,
-          event: "quick_checks_passed",
-          eligibility: answers,
-        }),
-      }).catch(() => undefined);
-    }
+    void fetch("/api/analytics/intake", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        jobId: job.id,
+        event: "quick_checks_passed",
+        eligibility: answers,
+      }),
+    }).catch(() => undefined);
     setError("");
     setStep("details");
   }
   function advanceResume() {
-    if (!localResume && !useSample) {
-      setError(
-        "Choose a resume file, or use the fictional sample resume to preview the demo.",
-      );
+    if (!localResume) {
+      setError("Choose a resume file to continue.");
       return;
     }
-    if (mode === "connected" && (!resumeId || !resumeReadiness?.ready)) {
+    if (!resumeId || !resumeReadiness?.ready) {
       setError(
         resumeReadiness?.parserStatus === "quarantined"
           ? "The resume is quarantined until a clean file scan is available."
@@ -496,12 +463,6 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
             : uploading
               ? "Wait for the resume upload and check to finish."
               : "Upload a resume and wait for its server check before continuing.",
-      );
-      return;
-    }
-    if (mode === "demo" && !useSample) {
-      setError(
-        "Resume text extraction is not configured. Your selected file stays on this device, and the flow cannot mark it ready.",
       );
       return;
     }
@@ -543,110 +504,67 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (uploading) return;
-    if (mode === "connected") {
-      if (
-        !resumeId ||
-        !resumeReadiness?.ready ||
-        extraFiles.some((file) => !file.id)
-      ) {
-        setError(
-          "Wait for all files to finish their server checks before submitting.",
-        );
-        return;
-      }
-      setUploading(true);
-      try {
-        const response = await fetch("/api/applications", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jobId: job?.id ?? jobId,
-            candidate: {
-              ...candidate,
-              email: session?.user?.email ?? candidate.email,
-            },
-            eligibility: answers,
-            relationship: candidate.relationship,
-            resumeId,
-            showcase:
-              showcaseChoice === "yes"
-                ? {
-                    note,
-                    links: linksText
-                      .split(/[\n,]/)
-                      .map((link) => link.trim())
-                      .filter(Boolean),
-                    files: extraFiles.map(({ id }) => ({ id })),
-                  }
-                : undefined,
-          }),
-        });
-        const value = await response.json();
-        if (!response.ok)
-          throw new Error(
-            value.message || "Your request could not be submitted.",
-          );
-        setSubmittedId(value.applicationId || value.id || "");
-        setStep("complete");
-        setError("");
-      } catch (reason) {
-        setError(
-          reason instanceof Error
-            ? reason.message
-            : "Your request could not be submitted.",
-        );
-      } finally {
-        setUploading(false);
-      }
-      return;
-    }
-    if (!useSample) {
+    if (
+      !resumeId ||
+      !resumeReadiness?.ready ||
+      extraFiles.some((file) => !file.id)
+    ) {
       setError(
-        "A real resume parser and submission service are not configured. This demo only accepts the fictional sample resume.",
+        "Wait for all files to finish their server checks before submitting.",
       );
       return;
     }
-    const input: CreateApplicationInput = {
-      jobId: job?.id ?? jobId,
-      candidate: { ...candidate, relationship: candidate.relationship },
-      eligibility,
-      relationship: candidate.relationship,
-      resume: {
-        fileName: "Sample_Resume_Alex_Rivera.pdf",
-        fileSize: 182400,
-        fileType: "application/pdf",
-        fields: { firstName: true, lastName: true, email: true, phone: true },
-      },
-      showcase:
-        showcaseChoice === "yes"
-          ? {
-              note,
-              links: linksText
-                .split(/[\n,]/)
-                .map((link) => link.trim())
-                .filter(Boolean),
-              files: extraFiles.map(({ name, size }) => ({ name, size })),
-            }
-          : undefined,
-    };
     setUploading(true);
     try {
-      const result = await submitApplication(input);
-      if (!result.ok) {
-        setError(result.message);
-        return;
-      }
-      setSubmittedId(result.applicationId ?? "demo-request");
+      const response = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId: job?.id ?? jobId,
+          candidate: {
+            ...candidate,
+            email: session?.user?.email ?? candidate.email,
+          },
+          eligibility: answers,
+          relationship: candidate.relationship,
+          resumeId,
+          showcase:
+            showcaseChoice === "yes"
+              ? {
+                  note,
+                  links: linksText
+                    .split(/[\n,]/)
+                    .map((link) => link.trim())
+                    .filter(Boolean),
+                  files: extraFiles.map(({ id }) => ({ id })),
+                }
+              : undefined,
+        }),
+      });
+      const value = await response.json();
+      if (!response.ok)
+        throw new Error(
+          value.message || "Your request could not be submitted.",
+        );
+      const applicationId = value.applicationId || value.id;
+      if (typeof applicationId !== "string" || applicationId.length === 0)
+        throw new Error(
+          "The request was submitted, but no receipt ID returned.",
+        );
+      setSubmittedId(applicationId);
       setStep("complete");
       setError("");
-    } catch {
-      setError("The demo request could not be added. Please try again.");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Your request could not be submitted.",
+      );
     } finally {
       setUploading(false);
     }
   }
 
-  const eligibility = answers;
   const showStepProgress =
     stepIndex >= 0 &&
     step !== "complete" &&
@@ -664,7 +582,7 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
             <span aria-hidden="true">←</span> The Open Door
           </Link>
           <span className="rounded-full bg-[#edf6ff] px-3 py-1.5 font-bold tracking-wide text-[#32619c]">
-            {mode === "demo" ? "DEMO REQUEST" : "PERSONAL REQUEST"}
+            PERSONAL REQUEST
             {step === "complete"
               ? " · COMPLETE"
               : step === "stopped"
@@ -713,12 +631,6 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                 </li>
               ))}
             </ol>
-            {mode === "demo" && (
-              <p className="mt-3 border-t border-[#edf2f7] pt-3 text-[11px] leading-5 text-[#6a7d93]">
-                Your progress is kept in this tab only and clears when it
-                refreshes or closes.
-              </p>
-            )}
           </div>
         )}
         {stopAtStart ? (
@@ -801,13 +713,11 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                   )}
                   {step === "details" && (
                     <DetailsStep
-                      candidate={
-                        mode === "connected"
-                          ? { ...candidate, email: session?.user?.email ?? "" }
-                          : candidate
-                      }
+                      candidate={{
+                        ...candidate,
+                        email: session?.user?.email ?? "",
+                      }}
                       setCandidate={setCandidate}
-                      connected={mode === "connected"}
                       verifiedEmail={session?.user?.email ?? ""}
                       onBack={() => {
                         if (returnToReview) {
@@ -823,9 +733,7 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                           !candidate.firstName.trim() ||
                           !candidate.lastName.trim() ||
                           !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-                            mode === "connected"
-                              ? (session?.user?.email ?? "")
-                              : candidate.email,
+                            session?.user?.email ?? "",
                           ) ||
                           !candidate.phone.trim() ||
                           !candidate.country.trim()
@@ -847,14 +755,10 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                   )}
                   {step === "resume" && (
                     <ResumeStep
-                      useSample={useSample}
-                      setUseSample={setUseSample}
                       localResume={localResume}
                       onChoose={handleResume}
-                      badFields={badFields}
                       onBack={() => setStep("details")}
                       onNext={advanceResume}
-                      connected={mode === "connected"}
                       readiness={resumeReadiness}
                       uploading={uploading}
                     />
@@ -870,7 +774,6 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                       files={extraFiles}
                       onChoose={handleExtraFiles}
                       total={totalExtras}
-                      connected={mode === "connected"}
                       uploading={uploading}
                       onRemove={(index) =>
                         setExtraFiles((files) =>
@@ -891,15 +794,12 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                   )}
                   {step === "review" && (
                     <ReviewStep
-                      candidate={
-                        mode === "connected"
-                          ? { ...candidate, email: session?.user?.email ?? "" }
-                          : candidate
-                      }
+                      candidate={{
+                        ...candidate,
+                        email: session?.user?.email ?? "",
+                      }}
                       answers={answers}
                       job={job}
-                      useSample={useSample}
-                      connected={mode === "connected"}
                       resumeFileName={localResume?.name ?? ""}
                       choice={showcaseChoice}
                       note={note}
@@ -921,10 +821,7 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                     />
                   )}
                   {step === "complete" && (
-                    <CompleteStep
-                      submittedId={submittedId}
-                      connected={mode === "connected"}
-                    />
+                    <CompleteStep submittedId={submittedId} />
                   )}
                   {step === "stopped" && <StoppedStep reason={stopReason} />}
                   {error && (
@@ -955,7 +852,7 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
                   <div className="mt-4 border-t border-[#edf2f7] pt-4 text-xs leading-5 text-[#687d94]">
                     <p>{job.canonicalJobId}</p>
                     <p className="mt-1">
-                      Preview availability:{" "}
+                      Listing availability:{" "}
                       {job.availability === "open"
                         ? "marked open"
                         : job.availability === "closed"
@@ -1078,15 +975,13 @@ function ActionRow({
       ) : (
         <span />
       )}
-      {nextLabel === "Submit demo request" ? null : (
-        <button
-          type="button"
-          onClick={next}
-          className="min-h-11 rounded-full bg-[#142b4b] px-6 text-sm font-semibold text-white transition hover:bg-[#1b46aa]"
-        >
-          {nextLabel} <span aria-hidden="true">→</span>
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={next}
+        className="min-h-11 rounded-full bg-[#142b4b] px-6 text-sm font-semibold text-white transition hover:bg-[#1b46aa]"
+      >
+        {nextLabel} <span aria-hidden="true">→</span>
+      </button>
     </div>
   );
 }
@@ -1113,11 +1008,11 @@ function EligibilityStep({
 }) {
   return (
     <div className="space-y-6">
-      <DemoNotice>
+      <p className="rounded-xl border border-[#d7e8f8] bg-[#eef7ff] px-4 py-3 text-sm leading-6 text-[#3e5d7c]">
         These quick questions come before contact details or a resume. In this
         flow, some answers need the employee who shared the link to review them.
-        They are not statements of EA-wide hiring policy.
-      </DemoNotice>
+        They do not determine EA hiring decisions.
+      </p>
       <fieldset>
         <legend className="mb-3 text-sm font-semibold text-[#2c4460]">
           Have you already applied to EA for this role?
@@ -1215,7 +1110,6 @@ function EligibilityStep({
 function DetailsStep({
   candidate,
   setCandidate,
-  connected,
   verifiedEmail,
   onBack,
   backLabel,
@@ -1232,7 +1126,6 @@ function DetailsStep({
     relationship: Relationship;
   };
   setCandidate: (next: typeof candidate) => void;
-  connected: boolean;
   verifiedEmail: string;
   onBack: () => void;
   backLabel: string;
@@ -1243,45 +1136,16 @@ function DetailsStep({
   }
   return (
     <div>
-      {connected && (
-        <p className="rounded-xl border border-[#d7e8f8] bg-[#f2f8ff] px-4 py-3 text-sm leading-6 text-[#405a76]">
-          If you submit, the employee who shared this link can review these
-          details and your resume. This does not apply to EA.{" "}
-          <Link
-            className="font-semibold text-[#2456c7] underline underline-offset-4"
-            href="/privacy"
-          >
-            Privacy details
-          </Link>
-        </p>
-      )}
-      {!connected && (
-        <DemoNotice>
-          Your contact details are entered for the fictional sample application
-          only. Values stay in this tab’s demo memory only. Use fictional sample
-          details; the demo cannot send updates.
-        </DemoNotice>
-      )}
-      {!connected && (
-        <button
-          type="button"
-          onClick={() =>
-            setCandidate({
-              firstName: "Alex",
-              lastName: "Rivera",
-              email: "alex.rivera@example.invalid",
-              phone: "+1 555 010 0199",
-              country: "United States",
-              currentCompany: "Northstar Interactive",
-              currentTitle: "Gameplay Engineer",
-              relationship: "former_colleague",
-            })
-          }
-          className="mt-4 rounded-full border border-[#c9d9ea] px-4 py-2.5 text-xs font-semibold text-[#2456c7] hover:bg-[#f1f6fc]"
+      <p className="rounded-xl border border-[#d7e8f8] bg-[#f2f8ff] px-4 py-3 text-sm leading-6 text-[#405a76]">
+        If you submit, the employee who shared this link can review these
+        details and your resume. This does not apply to EA.{" "}
+        <Link
+          className="font-semibold text-[#2456c7] underline underline-offset-4"
+          href="/privacy"
         >
-          Fill fictional sample details
-        </button>
-      )}
+          Privacy details
+        </Link>
+      </p>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <Field label="First name">
           <input
@@ -1303,8 +1167,8 @@ function DetailsStep({
           <input
             className={inputClass}
             type="email"
-            value={connected ? verifiedEmail : candidate.email}
-            readOnly={connected}
+            value={verifiedEmail}
+            readOnly
             onChange={(event) => field("email", event.target.value)}
             autoComplete="email"
           />
@@ -1326,14 +1190,7 @@ function DetailsStep({
             autoComplete="country-name"
           />
         </Field>
-        <Field
-          label="Relationship to me"
-          hint={
-            relationshipOptionsVerified
-              ? undefined
-              : "These options are provisional and have not been recently verified against EA’s form."
-          }
-        >
+        <Field label="Relationship to me">
           <select
             className={inputClass}
             value={candidate.relationship}
@@ -1363,7 +1220,7 @@ function DetailsStep({
         <div className="sm:col-span-2">
           <Field
             label="Opportunity source"
-            hint="This flow starts from a personal referral link. The preview does not assume an option from EA’s form."
+            hint="This flow starts from a personal referral link and does not collect referral source details."
           >
             <div
               className={`${inputClass} flex items-center text-sm text-[#526174]`}
@@ -1378,25 +1235,17 @@ function DetailsStep({
   );
 }
 function ResumeStep({
-  useSample,
-  setUseSample,
   localResume,
   onChoose,
-  badFields,
   onBack,
   onNext,
-  connected,
   readiness,
   uploading,
 }: {
-  useSample: boolean;
-  setUseSample: (value: boolean) => void;
   localResume: LocalFile | null;
   onChoose: (event: ChangeEvent<HTMLInputElement>) => void;
-  badFields: string[];
   onBack: () => void;
   onNext: () => void;
-  connected: boolean;
   readiness: {
     ready: boolean;
     missingFields: string[];
@@ -1404,125 +1253,42 @@ function ResumeStep({
   } | null;
   uploading: boolean;
 }) {
-  const [showCorrection, setShowCorrection] = useState(false);
   return (
     <div>
       <p className="text-sm leading-6 text-[#526174]">
-        We need to be able to read your first name, last name, email, and phone
-        from the resume itself. Typing those details above does not replace them
-        in the document.
+        We need to read your first name, last name, email, and phone from the
+        resume itself. Typing those details above does not replace them in the
+        document.
       </p>
-      <div className="mt-5 space-y-3">
-        {!connected && (
-          <button
-            type="button"
-            onClick={() => {
-              setUseSample(true);
-            }}
-            className={`w-full rounded-xl border p-4 text-left ${useSample ? "border-[#4a78cb] bg-[#eef5ff] ring-1 ring-[#4a78cb]" : "border-[#dce5ef] hover:border-[#97b5d2]"}`}
-          >
-            <span className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-[#2c4460]">
-                Use fictional sample resume
-              </span>
-              <span className="text-xs font-semibold text-[#3f719d]">
-                DEMO ONLY
-              </span>
-            </span>
-            <span className="mt-1 block text-xs leading-5 text-[#687d94]">
-              Alex Rivera · sample file with all four text fields already
-              readable
-            </span>
-          </button>
-        )}
-        <label className="block cursor-pointer rounded-xl border border-dashed border-[#a9c2dc] p-4 transition hover:bg-[#f6faff]">
-          <span className="block text-sm font-semibold text-[#2c4460]">
-            Choose a resume file from this device
-          </span>
-          <span className="mt-1 block text-xs leading-5 text-[#687d94]">
-            {connected
-              ? "PDF or DOCX · up to 4 MiB · uploaded for a secure scan and text check"
-              : "PDF or DOCX · Local preview only, up to 10 MiB"}
-          </span>
-          <input
-            className="mt-3 block w-full text-sm text-[#526174] file:mr-3 file:rounded-full file:border-0 file:bg-[#e8f1ff] file:px-4 file:py-2 file:text-xs file:font-semibold file:text-[#2456c7]"
-            type="file"
-            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            onChange={onChoose}
-          />
-        </label>
-      </div>
-      {!connected && (
-        <button
-          type="button"
-          onClick={() => {
-            setUseSample(false);
-            setShowCorrection((current) => !current);
-          }}
-          className="mt-4 text-xs font-semibold text-[#2456c7] underline decoration-[#a9bad0] underline-offset-4"
-          aria-expanded={showCorrection}
+      <label className="mt-5 block cursor-pointer rounded-xl border border-dashed border-[#a9c2dc] p-4 transition hover:bg-[#f6faff]">
+        <span className="block text-sm font-semibold text-[#2c4460]">
+          Choose a resume file from this device
+        </span>
+        <span className="mt-1 block text-xs leading-5 text-[#687d94]">
+          PDF or DOCX · up to 4 MiB · uploaded for a secure scan and text check
+        </span>
+        <input
+          className="mt-3 block w-full text-sm text-[#526174] file:mr-3 file:rounded-full file:border-0 file:bg-[#e8f1ff] file:px-4 file:py-2 file:text-xs file:font-semibold file:text-[#2456c7]"
+          type="file"
+          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          onChange={onChoose}
+        />
+      </label>
+      {localResume && (
+        <p
+          className={`mt-4 rounded-xl px-4 py-3 text-sm leading-6 ${readiness?.ready ? "border border-[#d7e8f8] bg-[#eef7ff] text-[#3e5d7c]" : "border border-[#efdfbe] bg-[#fbf5e8] text-[#735b2c]"}`}
+          role="status"
+          aria-live="polite"
         >
-          Preview a resume correction example
-        </button>
-      )}
-      {!connected && showCorrection && (
-        <div className="mt-3 rounded-xl border border-[#efdfbe] bg-[#fbf5e8] p-4 text-sm leading-6 text-[#735b2c]">
-          <p className="font-semibold">
-            Fictional example: phone number needs correction
-          </p>
-          <p className="mt-1">
-            The sample reader found a first name, last name, and email, but
-            could not clearly read a phone number. Add the number as selectable
-            text near your contact details, then upload the updated resume. A
-            typed phone field alone would not clear this check.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setUseSample(true);
-              setShowCorrection(false);
-            }}
-            className="mt-3 min-h-10 rounded-full bg-[#142b4b] px-4 text-xs font-semibold text-white"
-          >
-            Use the fictional corrected resume
-          </button>
-        </div>
-      )}
-      {connected ? (
-        localResume && (
-          <p
-            className={`mt-4 rounded-xl px-4 py-3 text-sm leading-6 ${readiness?.ready ? "border border-[#d7e8f8] bg-[#eef7ff] text-[#3e5d7c]" : "border border-[#efdfbe] bg-[#fbf5e8] text-[#735b2c]"}`}
-          >
-            {uploading
-              ? "Uploading and checking the resume…"
-              : readiness?.ready
-                ? `${localResume.name} is ready. The server found readable contact fields in the document.`
-                : readiness?.parserStatus === "quarantined"
-                  ? `${localResume.name} is quarantined pending a clean scan.`
-                  : readiness
-                    ? `The document needs readable ${readiness.missingFields.join(", ") || "contact fields"}. Update the file and upload it again.`
-                    : "Waiting for the server resume check."}
-          </p>
-        )
-      ) : useSample ? (
-        <p className="mt-4 rounded-xl border border-[#d7e8f8] bg-[#eef7ff] px-4 py-3 text-sm text-[#3e5d7c]">
-          Sample ready: Alex Rivera · sample_resume.pdf · Name, email and phone
-          are readable in this fictional example.
-        </p>
-      ) : (
-        localResume && (
-          <div className="mt-4 rounded-xl border border-[#efdfbe] bg-[#fbf5e8] px-4 py-3 text-sm leading-6 text-[#735b2c]">
-            Selected locally: <strong>{localResume.name}</strong>. No file was
-            uploaded. Text extraction is unavailable, so readiness is unknown. A
-            production flow would ask for a corrected file if required fields
-            could not be read.
-          </div>
-        )
-      )}
-      {!connected && !useSample && badFields.length > 0 && (
-        <p className="mt-3 text-xs leading-5 text-[#687d94]">
-          This preview cannot check these fields in a local file:{" "}
-          {badFields.join(", ")}.
+          {uploading
+            ? "Uploading and checking the resume…"
+            : readiness?.ready
+              ? `${localResume.name} is ready. Required contact fields were found in the document.`
+              : readiness?.parserStatus === "quarantined"
+                ? `${localResume.name} is quarantined pending a clean scan.`
+                : readiness
+                  ? `The document needs readable ${readiness.missingFields.join(", ") || "contact fields"}. Update the file and upload it again.`
+                  : "Waiting for the server resume check."}
         </p>
       )}
       <div className="mt-6">
@@ -1545,7 +1311,6 @@ function ShowcaseStep({
   onBack,
   backLabel,
   onNext,
-  connected,
   uploading,
 }: {
   choice: "yes" | "no" | "";
@@ -1561,7 +1326,6 @@ function ShowcaseStep({
   onBack: () => void;
   backLabel: string;
   onNext: () => void;
-  connected: boolean;
   uploading: boolean;
 }) {
   return (
@@ -1612,25 +1376,17 @@ function ShowcaseStep({
           </Field>
           <Field
             label="Supporting files"
-            hint={
-              connected
-                ? "Optional · PDF or DOCX · each file up to 4 MiB, total up to 10 MiB"
-                : "Optional · PDF, DOCX, TXT, or common image files · total maximum 10 MiB"
-            }
+            hint="Optional · PDF or DOCX · each file up to 4 MiB, total up to 10 MiB"
           >
             <input
               className="block w-full text-sm text-[#526174] file:mr-3 file:rounded-full file:border-0 file:bg-[#e8f1ff] file:px-4 file:py-2 file:text-xs file:font-semibold file:text-[#2456c7]"
               type="file"
               multiple
-              accept={
-                connected
-                  ? ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  : ".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,application/pdf,text/plain,image/png,image/jpeg,image/webp,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              }
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               onChange={onChoose}
             />
           </Field>
-          {connected && uploading && (
+          {uploading && (
             <p className="text-xs text-[#526174]" role="status">
               Uploading and checking selected files…
             </p>
@@ -1684,7 +1440,6 @@ function ReviewStep({
   candidate,
   answers,
   job,
-  useSample,
   choice,
   note,
   links,
@@ -1694,7 +1449,6 @@ function ReviewStep({
   onEditShowcase,
   onSubmit,
   submitting,
-  connected,
   resumeFileName,
 }: {
   candidate: {
@@ -1709,7 +1463,6 @@ function ReviewStep({
   };
   answers: EligibilityAnswers;
   job: Job;
-  useSample: boolean;
   choice: "yes" | "no" | "";
   note: string;
   links: string;
@@ -1719,7 +1472,6 @@ function ReviewStep({
   onEditShowcase: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   submitting: boolean;
-  connected: boolean;
   resumeFileName: string;
 }) {
   const relationship =
@@ -1731,12 +1483,6 @@ function ReviewStep({
     .filter(Boolean);
   return (
     <form onSubmit={onSubmit}>
-      {!connected && (
-        <DemoNotice>
-          Review only. Submitting creates a fictional application in this
-          browser demo; it does not upload your file or send an email.
-        </DemoNotice>
-      )}
       <div className="mt-5 space-y-4">
         <section className="rounded-2xl border border-[#e1e9f2] px-4 py-2 sm:px-5">
           <div className="flex items-center justify-between gap-3 border-b border-[#edf2f7] py-3">
@@ -1767,13 +1513,7 @@ function ReviewStep({
             />
             <ReviewRow
               label="Resume"
-              value={
-                connected
-                  ? `${resumeFileName || "Uploaded resume"} · server checked and ready`
-                  : useSample
-                    ? "Fictional sample resume · local readiness example"
-                    : "No readable resume selected"
-              }
+              value={`${resumeFileName || "Uploaded resume"} · server checked and ready`}
             />
           </dl>
         </section>
@@ -1865,10 +1605,8 @@ function ReviewStep({
       </div>
       <p className="mt-5 text-xs leading-5 text-[#687d94]">
         The employee who shared the link reviews this request. A referral is
-        never guaranteed.
-        {connected
-          ? " Your contact details and resume are stored for that review."
-          : " This preview creates only a fictional in-tab request; nothing is sent to EA."}
+        never guaranteed. Your contact details and resume are stored for that
+        review. This is not an EA job application.
       </p>
       <div className="mt-7 flex flex-col-reverse gap-3 border-t border-[#edf2f7] pt-5 sm:flex-row sm:justify-between">
         <span />
@@ -1877,11 +1615,7 @@ function ReviewStep({
           disabled={submitting}
           className="min-h-11 rounded-full bg-[#2456c7] px-6 text-sm font-semibold text-white transition hover:bg-[#1b46aa] disabled:cursor-wait disabled:opacity-60"
         >
-          {submitting
-            ? "Submitting…"
-            : connected
-              ? "Submit personal request"
-              : "Create demo request"}{" "}
+          {submitting ? "Submitting…" : "Submit personal request"}{" "}
           <span aria-hidden="true">→</span>
         </button>
       </div>
@@ -1896,44 +1630,26 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-function CompleteStep({
-  submittedId,
-  connected,
-}: {
-  submittedId: string;
-  connected: boolean;
-}) {
+function CompleteStep({ submittedId }: { submittedId: string }) {
   return (
     <div>
       <span className="grid size-12 place-items-center rounded-full bg-[#e8f4ff] text-xl text-[#2867bb]">
         ✓
       </span>
       <p className="mt-5 text-sm leading-6 text-[#526174]">
-        {connected
-          ? "Aashik will review your request and reply within two days. This request is not an EA job application, and no referral has been submitted."
-          : "The fictional request has been added to this tab’s demo workspace. It has not been sent to EA, and no referral was submitted."}
+        Your request was received for review by the employee who shared the
+        link. This is not an EA job application, and no referral has been
+        submitted.
       </p>
       <div className="mt-5 rounded-xl bg-[#f1f6fc] p-4 text-sm">
-        <span className="text-xs text-[#687d94]">
-          {connected ? "REQUEST RECEIPT" : "DEMO RECEIPT"}
-        </span>
+        <span className="text-xs text-[#687d94]">REQUEST RECEIPT</span>
         <p className="mt-1 font-mono text-[#2456c7]">{submittedId}</p>
       </div>
-      {!connected && (
-        <DemoNotice>
-          No email or status link was sent. This sample status can be viewed
-          from the receipt while you remain in this tab.
-        </DemoNotice>
-      )}
       <Link
-        href={
-          connected
-            ? "/status"
-            : `/status?applicationId=${encodeURIComponent(submittedId)}`
-        }
+        href="/status"
         className="mt-5 inline-flex min-h-11 items-center rounded-full border border-[#c9d9ea] px-5 text-sm font-semibold text-[#2456c7]"
       >
-        {connected ? "Check request status" : "View this sample request"}
+        Check request status
       </Link>
     </div>
   );
@@ -1942,23 +1658,23 @@ function StoppedStep({ reason }: { reason: StopReason }) {
   const messages: Record<StopReason, { title: string; body: string }> = {
     already_applied: {
       title: "You’ve already applied for this role.",
-      body: "This preview pauses when someone has already applied for the role. That is a demo check, not a statement of EA-wide recruiting policy. If you’re unsure, ask the employee who shared the link.",
+      body: "Please contact the employee who shared this link to confirm whether a referral request is appropriate. No request was submitted.",
     },
     already_referred: {
       title: "You’ve already been referred for this role.",
-      body: "This preview pauses when someone has already been referred for the role. That is a demo check, not a statement of EA-wide recruiting policy. If you’re unsure, ask the employee who shared the link.",
+      body: "Please contact the employee who shared this link to confirm the next step. No request was submitted.",
     },
     eligibility_review: {
       title: "This needs an owner check.",
-      body: "You selected “I’m not sure” about a prior application or referral. This preview can’t verify your eligibility; ask the employee who shared the link before sharing personal information.",
+      body: "You selected “I’m not sure” about a prior application or referral. Please confirm next steps with the employee who shared this link before sharing personal information.",
     },
     known_person: {
       title: "You already know the employee.",
-      body: "You can pause the form and reach out to the employee who shared the link through a contact method you already have. This preview does not reserve a slot or promise a referral.",
+      body: "Please contact the employee using a method you already have to discuss next steps. No personal information was requested or saved.",
     },
     location_review: {
       title: "This needs an owner check.",
-      body: "Your location may not match the locations listed for this role. This preview can’t decide how that applies; ask the employee who shared the link before sharing personal information.",
+      body: "Your location may not match the listed locations. Please confirm next steps with the employee who shared this link before sharing personal information.",
     },
   };
   return (

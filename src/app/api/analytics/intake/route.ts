@@ -1,6 +1,6 @@
 import { bodyRecord, identifier } from "@/app/api/_lib";
 import { checkEligibility } from "@/lib/domain/eligibility";
-import type { EligibilityAnswers } from "@/lib/demo/types";
+import type { EligibilityAnswers } from "@/lib/domain/types";
 import { requireUser } from "@/server/auth";
 import { getReferralRepository } from "@/server/supabase-repository";
 import {

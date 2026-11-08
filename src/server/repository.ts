@@ -11,7 +11,7 @@ import type {
   ReferralSlot,
   UpdateApplicationInput,
   UpdateJobInput,
-} from "@/lib/demo/types";
+} from "@/lib/domain/types";
 
 export type WorkspaceSnapshot = {
   jobs: Job[];

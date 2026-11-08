@@ -8,7 +8,7 @@ import {
   parseJson,
 } from "@/server/http";
 import { getReferralRepository } from "@/server/supabase-repository";
-import type { UpdateApplicationInput } from "@/lib/demo/types";
+import type { UpdateApplicationInput } from "@/lib/domain/types";
 
 export async function PATCH(
   request: Request,

@@ -4,11 +4,11 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { AdminShell } from "@/components/shared/shells";
-import { useWorkspace } from "@/lib/demo/workspace";
+import { useWorkspace } from "@/lib/workspace";
 
 export function AdminShellFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { mode, loading, error, session } = useWorkspace();
+  const { loading, error, session } = useWorkspace();
   const active =
     pathname === "/admin"
       ? "/admin"
@@ -23,7 +23,7 @@ export function AdminShellFrame({ children }: { children: ReactNode }) {
               : pathname.startsWith("/admin/settings")
                 ? "/admin/settings"
                 : undefined;
-  if (mode === "connected" && loading) {
+  if (loading) {
     return (
       <div className="grid min-h-screen place-items-center bg-[#f7f8f5] p-6">
         <div className="rounded-2xl border border-stone-200 bg-white px-6 py-8 text-center shadow-sm">
@@ -38,7 +38,7 @@ export function AdminShellFrame({ children }: { children: ReactNode }) {
     );
   }
 
-  if (mode === "connected" && error) {
+  if (error) {
     return (
       <div className="grid min-h-screen place-items-center bg-[#f7f8f5] p-6">
         <section className="max-w-lg rounded-2xl border border-[#e3d9c5] bg-white p-7 shadow-sm">
@@ -50,14 +50,15 @@ export function AdminShellFrame({ children }: { children: ReactNode }) {
           </h1>
           <p className="mt-3 text-sm leading-6 text-[#6b7b73]">
             The admin workspace is hidden until connected setup and data access
-            are available. No sample records are shown in connected mode.
+            are available. No substitute records are shown while data is
+            unavailable.
           </p>
         </section>
       </div>
     );
   }
 
-  if (mode === "connected" && session?.isAdmin !== true) {
+  if (session?.isAdmin !== true) {
     return (
       <div className="grid min-h-screen place-items-center bg-[#f7f8f5] p-6">
         <section className="max-w-lg rounded-2xl border border-stone-200 bg-white p-7 shadow-sm">
@@ -82,9 +83,5 @@ export function AdminShellFrame({ children }: { children: ReactNode }) {
     );
   }
 
-  return (
-    <AdminShell mode={mode} active={active}>
-      {children}
-    </AdminShell>
-  );
+  return <AdminShell active={active}>{children}</AdminShell>;
 }

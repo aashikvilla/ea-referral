@@ -24,7 +24,7 @@ const OTHER_ID = "00000000-0000-4000-8000-000000000002";
 
 function configure(mode = "connected") {
   process.env.EA_REFERRAL_MODE = mode;
-  process.env.SUPABASE_URL = "https://demo-project.supabase.co";
+  process.env.SUPABASE_URL = "https://integration-test.supabase.co";
   process.env.SUPABASE_PUBLISHABLE_KEY = "sb_publishable_test_value";
   process.env.SUPABASE_SECRET_KEY = "sb_secret_test_value";
   process.env.ADMIN_USER_ID = ADMIN_ID;
@@ -55,8 +55,8 @@ afterEach(() => {
   Object.assign(process.env, originalEnv);
 });
 
-test("connected config is explicit; demo mode reports no authenticated session", async () => {
-  configure("demo");
+test("connected config is explicit; disabled mode reports no authenticated session", async () => {
+  configure("disabled");
   assert.deepEqual(
     await getSessionSummary(
       new Request("https://referral.example.invalid/api/auth/session"),
@@ -264,7 +264,10 @@ test("owner token is verified remotely and admin identity is matched to configur
   );
   assert.equal(user.id, ADMIN_ID);
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].url, "https://demo-project.supabase.co/auth/v1/user");
+  assert.equal(
+    calls[0].url,
+    "https://integration-test.supabase.co/auth/v1/user",
+  );
   assert.equal(calls[0].init.headers.apikey, "sb_publishable_test_value");
   assert.equal(calls[0].init.headers.Authorization, "Bearer signed.jwt.token");
   assert.notEqual(calls[0].init.headers.apikey, "sb_secret_test_value");
@@ -534,7 +537,9 @@ test("connected candidate submission accepts a verified resume and persists only
     calls.some((url) => url.endsWith("/rpc/ea_referral_submit_application")),
   );
   assert.ok(
-    calls.every((url) => url.startsWith("https://demo-project.supabase.co/")),
+    calls.every((url) =>
+      url.startsWith("https://integration-test.supabase.co/"),
+    ),
   );
 });
 
@@ -632,8 +637,8 @@ test("resume validation scopes lookup to the authenticated candidate", async () 
   );
   assert.equal(response.status, 404);
   assert.deepEqual(calls, [
-    "https://demo-project.supabase.co/auth/v1/user",
-    `https://demo-project.supabase.co/rest/v1/ea_referral_resumes?select=*&id=eq.${ADMIN_ID}&auth_user_id=eq.${OTHER_ID}&limit=1`,
+    "https://integration-test.supabase.co/auth/v1/user",
+    `https://integration-test.supabase.co/rest/v1/ea_referral_resumes?select=*&id=eq.${ADMIN_ID}&auth_user_id=eq.${OTHER_ID}&limit=1`,
   ]);
 });
 
@@ -676,7 +681,7 @@ test("repository RPC calls use server credentials and pass actor IDs explicitly"
   assert.equal(slot.status, "reserved");
   assert.equal(
     calls[0].url,
-    "https://demo-project.supabase.co/rest/v1/rpc/ea_referral_reserve",
+    "https://integration-test.supabase.co/rest/v1/rpc/ea_referral_reserve",
   );
   assert.equal(calls[0].init.headers.apikey, "sb_secret_test_value");
   assert.equal(calls[0].init.headers.Authorization, undefined);

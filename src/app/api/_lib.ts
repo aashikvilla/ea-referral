@@ -3,7 +3,7 @@ import type {
   JobAvailability,
   JobStatus,
   UpdateJobInput,
-} from "@/lib/demo/types";
+} from "@/lib/domain/types";
 import {
   normalizeCanonicalJobId,
   validateEaJobUrl,

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { DemoBanner } from "./primitives";
 
 function Brand({ href }: { href: string }) {
   return (
@@ -21,15 +20,12 @@ function Brand({ href }: { href: string }) {
 export function PublicShell({
   children,
   active = "request",
-  mode = "demo",
 }: {
   children: ReactNode;
   active?: "request" | "status";
-  mode?: "demo" | "connected";
 }) {
   return (
     <div className="min-h-screen bg-[#f8f8f4]">
-      {mode === "demo" && <DemoBanner />}
       <header className="border-b border-stone-200 bg-[#fcfcf9]">
         <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-5 sm:px-8">
           <Brand href="/" />
@@ -70,15 +66,12 @@ const adminNav = [
 export function AdminShell({
   children,
   active,
-  mode,
 }: {
   children: ReactNode;
   active?: string;
-  mode: "demo" | "connected";
 }) {
   return (
     <div className="min-h-screen bg-[#f7f8f5]">
-      {mode === "demo" && <DemoBanner />}
       <div className="min-h-[calc(100vh-36px)] lg:grid lg:grid-cols-[248px_1fr]">
         <aside className="hidden border-r border-stone-200 bg-[#fcfcf9] p-5 lg:flex lg:flex-col">
           <Brand href="/admin" />
@@ -98,12 +91,10 @@ export function AdminShell({
           </nav>
           <div className="mt-auto rounded-2xl bg-stone-100 p-4">
             <p className="text-xs font-semibold text-stone-700">
-              {mode === "demo" ? "Demo mode" : "Connected workspace"}
+              Connected workspace
             </p>
             <p className="mt-1 text-xs leading-5 text-stone-500">
-              {mode === "demo"
-                ? "Workspace changes stay in this tab’s memory and clear on reload."
-                : "Workspace data is loaded from the connected service."}
+              Workspace data is loaded from the connected service.
             </p>
           </div>
         </aside>
@@ -127,11 +118,9 @@ export function AdminShell({
               Private admin workspace
             </p>
             <div className="flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-1.5">
-              <span
-                className={`size-2 rounded-full ${mode === "demo" ? "bg-amber-500" : "bg-teal-600"}`}
-              />
+              <span className="size-2 rounded-full bg-teal-600" />
               <span className="text-xs font-medium text-stone-700">
-                {mode === "demo" ? "Demo data" : "Connected data"}
+                Connected data
               </span>
             </div>
           </header>

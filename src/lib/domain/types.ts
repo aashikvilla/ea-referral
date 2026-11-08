@@ -188,7 +188,6 @@ export type FunnelMetrics = {
 
 export type ActionResult =
   { ok: true; message: string } | { ok: false; message: string };
-export type WorkspaceMode = "demo" | "connected";
 export type WorkspaceSession = {
   user: { id: string; email: string } | null;
   isAdmin: boolean;

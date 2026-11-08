@@ -7,7 +7,7 @@ export type ServerConfig = {
   secretKey: string;
   adminUserId: string;
   appOrigin: string;
-  mode: "demo" | "connected";
+  mode: "connected";
 };
 
 function isConfiguredPlaceholder(value: string): boolean {
@@ -20,8 +20,7 @@ export function readServerConfig(): ServerConfig | null {
   const secretKey = process.env.SUPABASE_SECRET_KEY?.trim();
   const adminUserId = process.env.ADMIN_USER_ID?.trim();
   const appOrigin = process.env.APP_ORIGIN?.trim();
-  const mode =
-    process.env.EA_REFERRAL_MODE?.trim() === "connected" ? "connected" : "demo";
+  if (process.env.EA_REFERRAL_MODE?.trim() !== "connected") return null;
   if (
     !supabaseUrl ||
     !publishableKey ||
@@ -58,7 +57,7 @@ export function readServerConfig(): ServerConfig | null {
       secretKey,
       adminUserId,
       appOrigin: origin.origin,
-      mode,
+      mode: "connected",
     };
   } catch {
     return null;

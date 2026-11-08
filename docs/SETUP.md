@@ -1,6 +1,6 @@
 # Setup and deployment
 
-This guide connects the existing app to Supabase, a malware scanning service, and Vercel. The database migrations are applied, and the GitHub repository is linked to the Vercel project. Connected mode has database, authentication, upload, and owner review code, but it is not a complete applicant service: see [Current limits](#current-limits).
+This guide configures the connected app with Supabase, a malware scanning service, and Vercel. All five database migrations are applied, and the GitHub repository is linked to Vercel. The application fails closed until the required settings and provider checks are complete: see [Current limits](#current-limits).
 
 ## 1. Supabase project
 
@@ -12,7 +12,7 @@ The server reads these exact variables (`src/server/config.ts` and `src/server/f
 
 | Variable                   | Value                                                                                                                                               |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `EA_REFERRAL_MODE`         | `connected` to enable connected server APIs. The default is `demo`.                                                                                 |
+| `EA_REFERRAL_MODE`         | Must be `connected`. Missing or any other value disables connected server operations.                                                               |
 | `APP_ORIGIN`               | The exact origin serving this environment, such as `http://localhost:3000` or the Vercel production URL. No path or trailing slash is needed.       |
 | `SUPABASE_URL`             | `https://xqotcezfgirjdoowxpkz.supabase.co`                                                                                                          |
 | `SUPABASE_PUBLISHABLE_KEY` | The project's Supabase publishable key.                                                                                                             |
@@ -27,7 +27,7 @@ The server reads these exact variables (`src/server/config.ts` and `src/server/f
 
 Set variables only after configuring the matching provider. In Vercel, use **Project → Settings → Environment Variables** and select the intended **Production**, **Preview**, and/or **Development** scope for each variable. Set `APP_ORIGIN` to the production origin and `http://localhost:3000` for local development. On Vercel, same-origin mutation checks also allow the exact generated deployment host from the platform's `VERCEL_URL`, so previews do not need a hard-coded per-deployment origin. Keep all Supabase, scanner, AI Gateway, and Resend variables server-only: do not prefix them with `NEXT_PUBLIC_`. Use a separate Supabase project for Preview if preview deployments should not access production data.
 
-For local work, copy `.env.example` to `.env.local`, replace its placeholders with actual values, and keep `EA_REFERRAL_MODE=demo` until the connected setup is ready. `.env.local` is ignored by Git. The placeholder values in `.env.example` do not enable connected mode.
+For local work, copy `.env.example` to `.env.local` and replace its placeholders with values from a non-production Supabase project. `.env.local` is ignored by Git. Do not use Production secrets in local development or Preview deployments.
 
 ### Apply and verify database/storage migrations
 
@@ -37,14 +37,15 @@ The app expects these migrations, applied in timestamp order:
 2. `supabase/migrations/20261025024815_ea_referral_server_schema.sql`
 3. `supabase/migrations/20261025031810_index_unindexed_foreign_keys.sql`
 4. `supabase/migrations/20261025040049_purge_candidate_notification_outbox.sql`
+5. `supabase/migrations/20261108113034_revoke_notification_trigger_function_execute.sql`
 
-All four migrations are already applied to the connected **ea-referral** Supabase project (`xqotcezfgirjdoowxpkz`). Remote history records `20261023201621 create_ea_referral_resumes_bucket`, `20261025024815 ea_referral_server_schema`, `20261025031810 index_unindexed_foreign_keys`, and `20261025040049 purge_candidate_notification_outbox`. Post-apply verification confirmed 10 public tables with both RLS and FORCE RLS enabled, no table grants to `anon` or `authenticated`, 70 table grants to `service_role`, and all 15 current RPCs executable by `service_role` only. The bucket `ea_referral_resumes` is private and limited to 4 MiB. There should be no public storage policy for this bucket.
+All five migrations are applied to the connected **ea-referral** Supabase project (`xqotcezfgirjdoowxpkz`). Remote history includes the four schema/storage migrations above and `20261108113034 revoke_notification_trigger_function_execute`. Verification confirmed 10 public tables with both RLS and FORCE RLS enabled, no table grants to `anon` or `authenticated`, 70 table grants to `service_role`, and the application RPCs are executable by `service_role` only. The two trigger functions are not executable by `anon` or `authenticated`; the bucket `ea_referral_resumes` is private and limited to 4 MiB. There should be no public storage policy for this bucket.
 
 The index migration adds indexes for the five previously unindexed foreign keys: `ea_referral_applications.candidate_id`, `ea_referral_audit.job_id`, `ea_referral_events.job_id`, `ea_referral_outbox.recipient_user_id`, and `ea_referral_resumes.job_id`. The corresponding unindexed-FK performance advisor findings are resolved. The privacy migration purges persisted notification outbox rows containing a candidate's email/message payload when that candidate is deleted, and rejects new queue entries when no matching candidate remains. It cannot recall a Resend request already in flight and accepted by the provider. Post-apply verification confirmed both privacy triggers are enabled and both trigger functions are `SECURITY INVOKER` with fixed `search_path=pg_catalog, public`. Other advisor INFO findings remain: 14 unused-index findings are expected before meaningful traffic, and 10 RLS/no-policy security INFO entries reflect the deliberate service-role-only table access. The advisors are not otherwise reported as clean.
 
 Do not run these existing migrations again. For a future migration, add a timestamped SQL file under `supabase/migrations/` and apply it once through the project's migration tooling (for example, link the Supabase CLI to this project and run `supabase db push` from the repository root). Running SQL in the dashboard SQL Editor does not necessarily record migration history, so use the same migration workflow consistently.
 
-To verify the completed setup, confirm **Database → Migrations** lists versions `20261023201621`, `20261025024815`, `20261025031810`, and `20261025040049`; the `ea_referral_*` tables and expected RPC functions exist; and **Storage → Buckets** contains a private `ea_referral_resumes` bucket with a 4 MiB file limit. The SQL Editor can check key objects, all five added indexes, and both privacy triggers:
+To verify the completed setup, confirm **Database → Migrations** lists versions `20261023201621`, `20261025024815`, `20261025031810`, `20261025040049`, and `20261108113034`; the `ea_referral_*` tables and expected RPC functions exist; and **Storage → Buckets** contains a private `ea_referral_resumes` bucket with a 4 MiB file limit. The SQL Editor can check key objects, all five added indexes, and both privacy triggers:
 
 ```sql
 select to_regclass('public.ea_referral_jobs') as jobs_table,
@@ -122,10 +123,10 @@ The endpoint must return a successful HTTP status and a JSON response no larger 
 ## 3. Vercel and GitHub deployment
 
 1. The Vercel project `ea-referral` is linked to GitHub repository `aashikvilla/ea-referral`; `main` is the production branch and Node 24 matches `.nvmrc` and GitHub Actions. Vercel uses the repository root and the detected Next.js build defaults.
-2. The verified production domain is `https://ea-referral.vercel.app`. `EA_REFERRAL_MODE=demo` is set for Production, Preview, and Development. `APP_ORIGIN` is set to the production domain for Production and `http://localhost:3000` for Development. Vercel's generated `VERCEL_URL` is also accepted for exact same-origin checks on Preview deployments.
-3. No Supabase, scanner, AI Gateway, or Resend key is required for the demo deployment. Keep connected integrations unset and keep `EA_REFERRAL_MODE=demo` until each provider and end-to-end flow is deliberately configured and verified.
+2. The verified production domain is `https://ea-referral.vercel.app`. `EA_REFERRAL_MODE=connected` is set for Production, Preview, and Development. `APP_ORIGIN` is set to the production domain for Production and `http://localhost:3000` for Development. Vercel's generated `VERCEL_URL` is also accepted for exact same-origin checks on Preview deployments.
+3. Production has `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and an encrypted `SUPABASE_SECRET_KEY`. No Supabase Auth user exists yet, so `ADMIN_USER_ID` is missing and the app remains unavailable until the owner account is created and configured. Preview/Development intentionally do not receive Production Supabase credentials.
 4. Vercel automatically deploys pushes to `main` as Production and creates Preview deployments for other Git branches. The GitHub Actions workflow runs repository checks and the production build; it does not deploy independently.
-5. If connected mode is configured later, add the production origin to Supabase Authentication's Site URL/allowed URLs, use separate Preview credentials as appropriate, and redeploy after changing environment variables.
+5. Add each connected app origin to Supabase Authentication's Site URL/allowed URLs, use separate Preview credentials, and redeploy after changing environment variables.
 
 ## 4. Local and deployment checks
 
@@ -136,7 +137,7 @@ npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000`. Demo mode should work without provider credentials. To check the repository's automated quality gates and production build:
+Open `http://localhost:3000`. Connected routes remain unavailable until local provider settings are configured. To check the repository's automated quality gates and production build:
 
 ```sh
 npm run check
@@ -154,4 +155,4 @@ After provider configuration and deployment, manually verify in a browser: reque
 - AI Gateway advisory assessment code is implemented, but `AI_GATEWAY_API_KEY`, operator-selected `AI_GATEWAY_MODEL`, and live provider verification remain outstanding. The model is called only on explicit owner request; it is not a decision-maker.
 - OCR is unavailable. Resume extraction supports bounded text-based PDF and DOCX parsing only, with limited PDF operator/font coverage.
 - The app does not automate EA referral submissions, scrape LinkedIn, or read LinkedIn messages. The owner must review and submit any referral manually.
-- Vercel project setup, provider configuration, deployment, and browser verification remain outstanding. Configuring services does not by itself make the connected workflow production-ready; integration and operational review are still required.
+- Vercel project setup and deployment are configured. Auth owner setup, SMTP/OTP delivery, optional providers, and browser verification remain outstanding. Configuring services does not by itself make the connected workflow production-ready; integration and operational review are still required.

@@ -21,20 +21,20 @@ import {
   validateEaJobUrl,
 } from "../src/lib/domain/validation.ts";
 import {
-  demoApplications,
-  demoCandidates,
-  demoJobs,
-  getDemoJobsForSession,
-} from "../src/lib/demo/fixtures.ts";
+  testApplications,
+  testCandidates,
+  testJobs,
+  withCheckedAvailability,
+} from "./fixtures/referral-test-data.ts";
 
-const fixtureOpenJob = demoJobs.find((job) => job.id === "job-508741");
+const fixtureOpenJob = testJobs.find((job) => job.id === "job-508741");
 const testNow = new Date("2026-10-24T12:00:00.000Z");
 const openJob = {
   ...fixtureOpenJob,
   availabilityCheckedAt: "2026-10-24T11:00:00.000Z",
 };
-const unknownJob = demoJobs.find((job) => job.id === "job-509182");
-const confirmedJob = demoJobs.find((job) => job.id === "job-507316");
+const unknownJob = testJobs.find((job) => job.id === "job-509182");
+const confirmedJob = testJobs.find((job) => job.id === "job-507316");
 
 function applicationInput(overrides = {}) {
   return {
@@ -216,7 +216,7 @@ test("evidence coverage uses weighted evidence only; optional participation is n
     { category: "achievements", supported: false },
   ];
   assert.equal(calculateEvidenceCoverage(requirements), 75);
-  const submitted = demoApplications[0];
+  const submitted = testApplications[0];
   const skippedShowcase = {
     ...submitted,
     showcase: { note: "", links: [], files: [] },
@@ -277,13 +277,13 @@ test("evidence coverage uses weighted evidence only; optional participation is n
 });
 
 test("confirmed and reserved referrals close intake, and unknown job availability stays blocked", () => {
-  assert.deepEqual(getReferralSlot(confirmedJob, demoApplications), {
+  assert.deepEqual(getReferralSlot(confirmedJob, testApplications), {
     jobId: confirmedJob.id,
     status: "confirmed",
     applicationId: "app-mateo",
     updatedAt: "2026-10-14T10:00:00.000Z",
   });
-  assert.equal(isIntakeAvailable(confirmedJob, demoApplications), false);
+  assert.equal(isIntakeAvailable(confirmedJob, testApplications), false);
   assert.equal(isIntakeAvailable(unknownJob, []), false);
   assert.equal(
     isIntakeAvailable({ ...openJob, availability: "closed" }, []),
@@ -292,7 +292,7 @@ test("confirmed and reserved referrals close intake, and unknown job availabilit
   assert.equal(isIntakeAvailable({ ...openJob, status: "paused" }, []), false);
 
   const reserved = {
-    ...demoApplications[0],
+    ...testApplications[0],
     id: "pending",
     jobId: openJob.id,
     status: "selected_pending_submission",
@@ -315,9 +315,9 @@ test("confirmed and reserved referrals close intake, and unknown job availabilit
   );
 });
 
-test("demo session refreshes only the fictional open role availability timestamp", () => {
+test("test data applies the current availability timestamp only to open roles", () => {
   const checkedAt = testNow.toISOString();
-  const jobs = getDemoJobsForSession(checkedAt);
+  const jobs = withCheckedAvailability(checkedAt);
   const refreshedOpen = jobs.find((job) => job.id === openJob.id);
   const unknown = jobs.find((job) => job.id === unknownJob.id);
   const referred = jobs.find((job) => job.id === confirmedJob.id);
@@ -334,13 +334,13 @@ test("demo session refreshes only the fictional open role availability timestamp
 
 test("one job cannot project a second active referral slot when duplicate applications exist", () => {
   const confirmed = {
-    ...demoApplications[0],
+    ...testApplications[0],
     id: "confirmed",
     jobId: openJob.id,
     status: "referral_confirmed",
   };
   const reserved = {
-    ...demoApplications[1],
+    ...testApplications[1],
     id: "reserved",
     jobId: openJob.id,
     status: "selected_pending_submission",
@@ -404,12 +404,12 @@ test("generic application status updates cannot confirm or reopen a referral slo
 
 test("duplicate application guard matches normalized email only within the same job", () => {
   const candidate = {
-    ...demoCandidates[0],
+    ...testCandidates[0],
     id: "candidate-dup",
     email: " Person@Example.Invalid ",
   };
   const existing = {
-    ...demoApplications[0],
+    ...testApplications[0],
     id: "app-dup",
     jobId: "job-508741",
     candidateId: candidate.id,
@@ -445,19 +445,19 @@ test("duplicate application guard matches normalized email only within the same 
 
 test("slot transitions reserve once, reject a competing reservation, then release or confirm", () => {
   const candidateOne = {
-    ...demoApplications[0],
+    ...testApplications[0],
     id: "candidate-one",
     jobId: openJob.id,
     status: "ready_for_review",
   };
   const candidateTwo = {
-    ...demoApplications[1],
+    ...testApplications[1],
     id: "candidate-two",
     jobId: openJob.id,
     status: "shortlisted",
   };
   const candidateThree = {
-    ...demoApplications[0],
+    ...testApplications[0],
     id: "candidate-three",
     jobId: openJob.id,
     status: "ready_for_review",
@@ -588,7 +588,7 @@ test("slot transitions reserve once, reject a competing reservation, then releas
 
 test("release keeps closed, unknown, and stale jobs unavailable", () => {
   const reservation = {
-    ...demoApplications[0],
+    ...testApplications[0],
     id: "reserved-app",
     jobId: openJob.id,
     status: "selected_pending_submission",
@@ -632,13 +632,13 @@ test("confirmation closes every nonfinal application while preserving final stat
     "slot_filled_other",
   ];
   const reserved = {
-    ...demoApplications[0],
+    ...testApplications[0],
     id: "reserved-app",
     jobId: openJob.id,
     status: "selected_pending_submission",
   };
   const others = statuses.map((status) => ({
-    ...demoApplications[1],
+    ...testApplications[1],
     id: `other-${status}`,
     jobId: openJob.id,
     status,

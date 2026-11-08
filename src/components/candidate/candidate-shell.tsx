@@ -71,11 +71,3 @@ export function Eyebrow({ children }: { children: ReactNode }) {
     </p>
   );
 }
-
-export function DemoNotice({ children }: { children: ReactNode }) {
-  return (
-    <div className="rounded-xl border border-[#d7e8f8] bg-[#eef7ff] px-4 py-3 text-sm leading-6 text-[#3e5d7c]">
-      {children}
-    </div>
-  );
-}

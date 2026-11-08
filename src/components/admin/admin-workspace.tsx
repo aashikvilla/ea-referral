@@ -9,14 +9,14 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { useWorkspace } from "@/lib/demo/workspace";
+import { useWorkspace } from "@/lib/workspace";
 import type {
   Application,
   ApplicationStatus,
   CreateJobInput,
   Job,
   UpdateJobInput,
-} from "@/lib/demo/types";
+} from "@/lib/domain/types";
 import { checkEligibility } from "@/lib/domain/eligibility";
 import { isIntakeAvailable } from "@/lib/domain/slots";
 import type { AssessmentResult } from "@/server/assessment";
@@ -325,7 +325,7 @@ function AppRow({
 }
 
 function Dashboard() {
-  const { jobs, candidates, applications, activity, mode, funnelMetrics } =
+  const { jobs, candidates, applications, activity, funnelMetrics } =
     useWorkspace();
   const pending = applications.filter(
     (a) =>
@@ -338,7 +338,7 @@ function Dashboard() {
       a.status === "correction_required" || a.status === "eligibility_review",
   );
   const referred = applications.filter(
-    (a) => a.status === "referral_confirmed",
+    (application) => application.status === "referral_confirmed",
   );
   const topApps = [...applications]
     .sort((a, b) => b.matchScore - a.matchScore)
@@ -348,45 +348,27 @@ function Dashboard() {
       <PageTitle
         eyebrow="Owner workspace · Overview"
         title="A clearer view of every request."
-        description={
-          mode === "demo"
-            ? "A sample workspace to review referral requests, check job availability, and prepare a careful manual referral."
-            : "Review current referral requests, check job availability, and prepare careful manual referrals."
-        }
+        description="Review current referral requests, check job availability, and prepare careful manual referrals."
         action={
           <Link href="/admin/jobs/new" className={button}>
             ＋ Add a job
           </Link>
         }
       />
-      {mode === "demo" ? (
-        <Notice>
-          Demo workspace with fictional records. This screen does not represent
-          a real authenticated admin account.
-        </Notice>
-      ) : (
-        <Notice>
-          Connected owner workspace. Email sending is unavailable.
-        </Notice>
-      )}
+      <Notice>
+        Private owner workspace. Email sending is unavailable until a delivery
+        provider is configured.
+      </Notice>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric
           label="Verified role visits"
-          value={mode === "demo" ? "126" : funnelMetrics.verifiedRoleVisits}
-          note={
-            mode === "demo"
-              ? "Illustrative sample · 30 days"
-              : "Unique verified candidate and role pairs · 30 days"
-          }
+          value={funnelMetrics.verifiedRoleVisits}
+          note="Unique verified candidate and role pairs · 30 days"
         />
         <Metric
           label="Intake starters"
-          value={mode === "demo" ? "38" : funnelMetrics.intakeStarts}
-          note={
-            mode === "demo"
-              ? "Illustrative sample · 30% of visitors"
-              : "Unique verified candidate and role pairs · 30 days"
-          }
+          value={funnelMetrics.intakeStarts}
+          note="Unique verified candidate and role pairs · 30 days"
         />
         <Metric
           label="Requests received"
@@ -404,92 +386,62 @@ function Dashboard() {
         <Panel
           title="Intake funnel"
           action={
-            mode === "demo" ? (
-              <span className="text-xs text-[#87938c]">
-                Illustrative sample · 30 days
-              </span>
-            ) : (
-              <span className="text-xs text-[#87938c]">Rolling 30 days</span>
-            )
+            <span className="text-xs text-[#87938c]">Rolling 30 days</span>
           }
         >
           <div className="space-y-4">
-            {(mode === "demo"
-              ? [
-                  { name: "Visited referral link", value: 126, percent: 100 },
-                  { name: "Started intake", value: 38, percent: 30 },
-                  { name: "Passed quick checks", value: 24, percent: 19 },
-                  {
-                    name: "Submitted request",
-                    value: applications.length,
-                    percent: 13,
-                  },
-                  {
-                    name: "Referred manually",
-                    value: referred.length,
-                    percent: 4,
-                  },
-                ]
-              : [
-                  {
-                    name: "Verified role visits",
-                    value: funnelMetrics.verifiedRoleVisits,
-                  },
-                  { name: "Started intake", value: funnelMetrics.intakeStarts },
-                  {
-                    name: "Passed quick checks",
-                    value: funnelMetrics.quickChecksPassed,
-                  },
-                  {
-                    name: "Submitted request",
-                    value: funnelMetrics.requestsSubmitted,
-                  },
-                  {
-                    name: "Referral confirmed manually",
-                    value: funnelMetrics.referralsConfirmed,
-                  },
-                ].map((row) => ({
-                  ...row,
-                  percent:
-                    funnelMetrics.verifiedRoleVisits > 0
-                      ? Math.min(
-                          100,
-                          Math.round(
-                            (row.value / funnelMetrics.verifiedRoleVisits) *
-                              100,
-                          ),
-                        )
-                      : 0,
-                }))
-            ).map((row) => (
-              <div key={row.name}>
-                <div className="mb-1.5 flex justify-between text-xs">
-                  <span className="text-[#63736a]">{row.name}</span>
-                  <span className="font-semibold text-[#395d4d]">
-                    {row.value}
-                  </span>
+            {[
+              {
+                name: "Verified role visits",
+                value: funnelMetrics.verifiedRoleVisits,
+              },
+              { name: "Started intake", value: funnelMetrics.intakeStarts },
+              {
+                name: "Passed quick checks",
+                value: funnelMetrics.quickChecksPassed,
+              },
+              {
+                name: "Submitted request",
+                value: funnelMetrics.requestsSubmitted,
+              },
+              {
+                name: "Referral confirmed manually",
+                value: funnelMetrics.referralsConfirmed,
+              },
+            ]
+              .map((row) => ({
+                ...row,
+                percent:
+                  funnelMetrics.verifiedRoleVisits > 0
+                    ? Math.min(
+                        100,
+                        Math.round(
+                          (row.value / funnelMetrics.verifiedRoleVisits) * 100,
+                        ),
+                      )
+                    : 0,
+              }))
+              .map((row) => (
+                <div key={row.name}>
+                  <div className="mb-1.5 flex justify-between text-xs">
+                    <span className="text-[#63736a]">{row.name}</span>
+                    <span className="font-semibold text-[#395d4d]">
+                      {row.value}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-[#edf2ee]">
+                    <div
+                      className="h-full rounded-full bg-[#61927a]"
+                      style={{ width: `${row.percent}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 rounded-full bg-[#edf2ee]">
-                  <div
-                    className="h-full rounded-full bg-[#61927a]"
-                    style={{ width: `${row.percent}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
-          {mode === "connected" && (
-            <p className="mt-4 border-t border-[#edf1ee] pt-3 text-xs leading-5 text-[#89958e]">
-              Funnel counts reflect verified candidate and role pairs. A person
-              who visits more than one role is counted once for each role.
-            </p>
-          )}
-          {mode === "demo" && (
-            <p className="mt-4 border-t border-[#edf1ee] pt-3 text-xs leading-5 text-[#89958e]">
-              Funnel counts are illustrative sample values and are not collected
-              analytics.
-            </p>
-          )}
+          <p className="mt-4 border-t border-[#edf1ee] pt-3 text-xs leading-5 text-[#89958e]">
+            Funnel counts reflect verified candidate and role pairs. A person
+            who visits more than one role is counted once for each role.
+          </p>
         </Panel>
         <Panel
           title="Needs attention"
@@ -550,7 +502,7 @@ function Dashboard() {
         <Metric
           label="Confirmed referrals"
           value={referred.length}
-          note="Manually confirmed in sample data"
+          note="Manually confirmed by the owner"
         />
         <Metric
           label="Status messages"
@@ -619,7 +571,7 @@ function Dashboard() {
           ) : (
             <Empty
               title="No activity yet"
-              text="Changes made in this demo workspace will show here."
+              text="Owner and system updates will appear here."
             />
           )}
         </Panel>
@@ -650,7 +602,7 @@ function Jobs() {
       />
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-[#728178]">
-          {jobs.length} roles in this demo workspace
+          {jobs.length} roles in the workspace
         </p>
         <input
           className={`${input} sm:max-w-xs`}
@@ -715,7 +667,7 @@ function Jobs() {
       {!filtered.length && (
         <Empty
           title="No matching roles"
-          text="Try a different search or add a job to this local workspace."
+          text="Try a different search or add a job to the workspace."
           action={
             <Link href="/admin/jobs/new" className={secondary}>
               Add a job
@@ -767,7 +719,7 @@ function JobForm({ job }: { job?: Job }) {
       <PageTitle
         eyebrow={`Owner workspace · Jobs · ${job ? "Edit" : "New"}`}
         title={job ? "Edit role details" : "Add an EA role"}
-        description="Store the job information used for evidence review and a candidate facing referral link. Availability stays a manual owner check in this demo."
+        description="Store the job information used for evidence review and a candidate-facing referral link. Confirm availability against the official listing."
       />
       <div className="grid gap-5 xl:grid-cols-[1fr_330px]">
         <form onSubmit={save} className={`${card} space-y-5 p-5 sm:p-7`}>
@@ -868,8 +820,8 @@ function JobForm({ job }: { job?: Job }) {
         </form>
         <div className="space-y-4">
           <Notice warning>
-            Job status is owner-confirmed. The demo cannot verify EA listings
-            automatically or infer that a role is closed.
+            Job availability is not checked automatically. Confirm it against
+            the official EA listing before sharing a referral link.
           </Notice>
           <Panel title="Before sharing">
             <ul className="space-y-3 text-sm leading-5 text-[#68786f]">
@@ -902,7 +854,7 @@ function JobWorkspace({ jobId }: { jobId: string }) {
     return (
       <Empty
         title="Role not found"
-        text="This role may have been removed from the browser demo."
+        text="This role may no longer be available."
         action={
           <Link className={secondary} href="/admin/jobs">
             Return to jobs
@@ -985,7 +937,7 @@ function JobWorkspace({ jobId }: { jobId: string }) {
         <Metric
           label="Requests"
           value={jobApps.length}
-          note="All local sample applications"
+          note="All candidate applications"
           accent
         />
         <Metric
@@ -1060,7 +1012,7 @@ function JobWorkspace({ jobId }: { jobId: string }) {
               text={
                 jobApps.length
                   ? "Choose another filter to see the rest of this role’s candidates."
-                  : "When a fictional candidate submits in the browser demo, the request appears here."
+                  : "Applications for this role will appear here."
               }
             />
           ) : (
@@ -1262,7 +1214,6 @@ function CandidateDetail({ applicationId }: { applicationId: string }) {
     updateApplication,
     updateApplicationStatus,
     reserveReferral,
-    mode,
   } = useWorkspace();
   const app = applications.find((item) => item.id === applicationId);
   const candidate =
@@ -1274,11 +1225,7 @@ function CandidateDetail({ applicationId }: { applicationId: string }) {
     return (
       <Empty
         title="Candidate request not found"
-        text={
-          mode === "demo"
-            ? "The request may no longer be in this browser demo workspace."
-            : "The request may no longer be available in the connected workspace."
-        }
+        text="The request may no longer be available in the workspace."
         action={
           <Link href="/admin/jobs" className={secondary}>
             Return to jobs
@@ -1447,9 +1394,7 @@ function CandidateDetail({ applicationId }: { applicationId: string }) {
                 {app.showcase.files.map((file) => (
                   <div key={`${file.name}-${file.size}`}>
                     {file.name} · {(file.size / 1024).toFixed(0)} KB
-                    {mode === "connected" && (
-                      <PrivateFileDownload fileId={file.id} />
-                    )}
+                    <PrivateFileDownload fileId={file.id} />
                   </div>
                 ))}
               </div>
@@ -1464,7 +1409,7 @@ function CandidateDetail({ applicationId }: { applicationId: string }) {
             />
             <div className="mt-3 flex justify-end">
               <button className={secondary} onClick={saveNote}>
-                {mode === "demo" ? "Save note in demo" : "Save private note"}
+                Save private note
               </button>
             </div>
           </Panel>
@@ -1487,13 +1432,10 @@ function CandidateDetail({ applicationId }: { applicationId: string }) {
                 </span>
               </div>
               <p className="mt-3 text-xs leading-5 text-[#829087]">
-                {mode === "demo"
-                  ? "Local preview has metadata only. The actual document is not available in this demo."
-                  : "Private resume access is available only after the file passes the required safety and readiness checks."}
+                Private resume access is available only after the file passes
+                the required safety and readiness checks.
               </p>
-              {mode === "connected" && (
-                <PrivateFileDownload fileId={app.resumeId} />
-              )}
+              <PrivateFileDownload fileId={app.resumeId} />
             </div>
             <div className="mt-4 space-y-2">
               {fields.map((field) => (
@@ -1606,9 +1548,7 @@ function CandidateDetail({ applicationId }: { applicationId: string }) {
               </button>
             </div>
             <p className="mt-3 text-xs leading-5 text-[#89958e]">
-              {mode === "demo"
-                ? "Status changes are recorded only in this browser demo. No candidate is notified."
-                : "Changes are saved to the connected workspace. No candidate is notified."}
+              Changes are saved to the workspace. No candidate is notified.
             </p>
           </Panel>
           <Panel title="Decision history">
@@ -1630,9 +1570,7 @@ function CandidateDetail({ applicationId }: { applicationId: string }) {
               </ul>
             ) : (
               <p className="text-sm leading-6 text-[#87938c]">
-                {mode === "demo"
-                  ? "No recorded decision changes for this sample request."
-                  : "No recorded decision changes for this request."}
+                No recorded decision changes for this request.
               </p>
             )}
           </Panel>
@@ -1884,7 +1822,6 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
     releaseReferral,
     confirmReferral,
     updateApplication,
-    mode,
   } = useWorkspace();
   const app = applications.find((item) => item.id === applicationId);
   const candidate =
@@ -1902,11 +1839,7 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
     return (
       <Empty
         title="Referral prep unavailable"
-        text={
-          mode === "demo"
-            ? "This request could not be found in the local sample workspace."
-            : "This request could not be found in the connected workspace."
-        }
+        text="This request could not be found in the workspace."
         action={
           <Link href="/admin/jobs" className={secondary}>
             Return to jobs
@@ -2020,7 +1953,7 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
       <PageTitle
         eyebrow="Owner workspace · Manual referral"
         title="Referral preparation"
-        description={`Review and copy details for manual entry in EA’s referral portal. ${mode === "demo" ? "This browser demo never opens or submits portal fields automatically." : "Portal submission remains a manual owner action; this workspace does not submit on your behalf."}`}
+        description="Review and copy details for manual entry in EA’s referral portal. Portal submission remains a manual owner action; this workspace does not submit on your behalf."
       />
       {message && (
         <div className="mb-4" role="status">
@@ -2109,9 +2042,8 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
               </p>
             )}
             <p className="mt-4 border-t border-[#edf1ee] pt-3 text-xs leading-5 text-[#87938c]">
-              {mode === "demo"
-                ? "Fields are from the submitted sample. Review every value before pasting into an external form."
-                : "Fields are from the submitted application. Review every value before pasting into an external form."}
+              Fields are from the submitted application. Review every value
+              before pasting into an external form.
             </p>
           </Panel>
           <Panel title="Resume and optional files">
@@ -2126,13 +2058,10 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
                   {app.resume.version}
                 </p>
                 <p className="mt-2 text-xs leading-5 text-[#87938c]">
-                  {mode === "demo"
-                    ? "The demo has metadata only; it cannot download a real resume file."
-                    : "Private file downloads require a clean scan and, for resumes, completed readiness checks."}
+                  Private file downloads require a clean scan and, for resumes,
+                  completed readiness checks.
                 </p>
-                {mode === "connected" && (
-                  <PrivateFileDownload fileId={app.resumeId} />
-                )}
+                <PrivateFileDownload fileId={app.resumeId} />
               </div>
               <span className="rounded-full bg-[#e8f3eb] px-2.5 py-1 text-[10px] font-semibold text-[#447554]">
                 {app.resumeReady ? "Ready" : "Correction needed"}
@@ -2147,10 +2076,7 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
                   >
                     Supporting file: {file.name} ·{" "}
                     {(file.size / 1024).toFixed(0)} KB
-                    {mode === "demo" ? " (not included in this demo)" : ""}
-                    {mode === "connected" && (
-                      <PrivateFileDownload fileId={file.id} />
-                    )}
+                    <PrivateFileDownload fileId={file.id} />
                   </div>
                 ))}
               </div>
@@ -2158,29 +2084,25 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
           </Panel>
           <Panel title="Professional fit summary">
             <p className="text-xs leading-5 text-[#87938c]">
-              {mode === "demo"
-                ? "This editable summary uses the sample evidence below. Verify it yourself; the demo does not generate AI content."
-                : "This editable summary is advisory. You can request an AI evidence assessment; you remain responsible for reviewing every claim and citation."}
+              This editable summary is advisory. You can request an AI evidence
+              assessment; you remain responsible for reviewing every claim and
+              citation.
             </p>
-            {mode === "connected" && (
-              <div className="mt-3 rounded-xl bg-[#f7faf7] p-3 text-xs leading-5 text-[#687a70]">
-                Running an assessment sends the resume text and job description
-                to the configured AI Gateway after email, phone, and candidate
-                name are redacted. The request runs only when you select the
-                button below.
-              </div>
-            )}
-            {mode === "connected" && (
-              <button
-                className={`${secondary} mt-3`}
-                disabled={assessmentBusy || !app.resumeReady}
-                onClick={runAssessment}
-              >
-                {assessmentBusy
-                  ? "Assessing evidence…"
-                  : "Run advisory assessment"}
-              </button>
-            )}
+            <div className="mt-3 rounded-xl bg-[#f7faf7] p-3 text-xs leading-5 text-[#687a70]">
+              Running an assessment sends the resume text and job description to
+              the configured AI Gateway after email, phone, and candidate name
+              are redacted. The request runs only when you select the button
+              below.
+            </div>
+            <button
+              className={`${secondary} mt-3`}
+              disabled={assessmentBusy || !app.resumeReady}
+              onClick={runAssessment}
+            >
+              {assessmentBusy
+                ? "Assessing evidence…"
+                : "Run advisory assessment"}
+            </button>
             {assessment?.status === "available" && (
               <div className="mt-4 rounded-xl border border-[#dce5df] p-4">
                 <p className="text-sm font-semibold text-[#355447]">
@@ -2231,7 +2153,7 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
             />
             <div className="mt-3 flex justify-between">
               <button className={secondary} onClick={saveFitNote}>
-                {mode === "demo" ? "Save summary in demo" : "Save fit summary"}
+                Save fit summary
               </button>
               <button
                 className={secondary}
@@ -2260,9 +2182,8 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
               <StatusPill value={slot.status} />
             </div>
             <p className="mt-3 text-sm leading-6 text-[#748279]">
-              {mode === "demo"
-                ? "A reservation pauses new intake in the browser demo. It does not mean EA portal submission succeeded."
-                : "A reservation pauses new intake for this job. It does not mean EA portal submission succeeded."}
+              A reservation pauses new intake for this job. It does not mean EA
+              portal submission succeeded.
             </p>
             <div className="mt-4 flex flex-col gap-2">
               {slot.status === "available" && (
@@ -2398,226 +2319,8 @@ function ReferralPrep({ applicationId }: { applicationId: string }) {
   );
 }
 
-function Notifications() {
-  const { jobs, candidates, applications } = useWorkspace();
-  const [jobId, setJobId] = useState("");
-  const [group, setGroup] = useState("remaining");
-  const [selected, setSelected] = useState<string[]>([]);
-  const terminal = ["referral_confirmed", "not_selected", "slot_filled_other"];
-  const pool = applications.filter(
-    (app) => (!jobId || app.jobId === jobId) && !terminal.includes(app.status),
-  );
-  const referred = applications.filter(
-    (app) =>
-      (!jobId || app.jobId === jobId) && app.status === "referral_confirmed",
-  );
-  const groupedRecipients =
-    group === "referred"
-      ? referred
-      : pool.filter((app) => app.status !== "selected_pending_submission");
-  const seenEmails = new Set<string>();
-  const recipients = groupedRecipients.filter((app) => {
-    const email = candidates
-      .find((candidate) => candidate.id === app.candidateId)
-      ?.email.trim()
-      .toLowerCase();
-    if (!email || seenEmails.has(email)) return false;
-    seenEmails.add(email);
-    return true;
-  });
-  const recipientCandidate = recipients.find((app) =>
-    selected.includes(app.id),
-  );
-  const person =
-    recipientCandidate &&
-    candidates.find((c) => c.id === recipientCandidate.candidateId);
-  const job =
-    recipientCandidate && jobs.find((j) => j.id === recipientCandidate.jobId);
-  const greeting =
-    selected.length === 1 ? (person?.firstName ?? "there") : "{{firstName}}";
-  const template =
-    group === "referred"
-      ? `Hi ${greeting},\n\nI submitted your referral for ${job?.title ?? "the role"}. That confirms the referral was sent, but it does not guarantee an interview or offer.\n\nBest,\nYour EA contact`
-      : `Hi ${greeting},\n\nI’m sorry, but I’m not able to refer you for ${job?.title ?? "this role"}. I’ve confirmed a referral for this opening, and I can only make one referral for this job ID. I appreciate you taking the time to apply.\n\nBest,\nYour EA contact`;
-  function toggle(id: string) {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
-    );
-  }
-  return (
-    <>
-      <PageTitle
-        eyebrow="Owner workspace · Communications"
-        title="Notification review"
-        description="Preview sample messages and review recipient groups. This workspace has no email provider, so sending is unavailable."
-      />
-      <div className="mb-5">
-        <Notice warning>
-          Sending is disabled: no email provider is configured. Nothing will be
-          delivered from this browser demo.
-        </Notice>
-      </div>
-      <div className="grid gap-5 xl:grid-cols-[340px_1fr]">
-        <Panel title="Recipients">
-          <label className="mb-3 block text-xs font-semibold text-[#63756b]">
-            Job
-            <select
-              className={`${input} mt-1`}
-              value={jobId}
-              onChange={(e) => {
-                setJobId(e.target.value);
-                setSelected([]);
-              }}
-            >
-              <option value="">All jobs</option>
-              {jobs.map((j) => (
-                <option key={j.id} value={j.id}>
-                  {j.title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="mb-4 block text-xs font-semibold text-[#63756b]">
-            Message group
-            <select
-              className={`${input} mt-1`}
-              value={group}
-              onChange={(e) => {
-                setGroup(e.target.value);
-                setSelected([]);
-              }}
-            >
-              <option value="remaining">Other applicants</option>
-              <option value="referred">Referred candidate</option>
-            </select>
-          </label>
-          <p className="mb-2 text-xs text-[#87938c]">
-            {recipients.length} eligible sample recipients
-          </p>
-          {!recipients.length ? (
-            <Empty
-              title="No recipients in this group"
-              text="Finalized statuses and duplicate recipients are excluded from the other applicants list."
-            />
-          ) : (
-            <div className="max-h-[450px] space-y-1 overflow-auto">
-              {recipients.map((app) => {
-                const c = candidates.find(
-                  (item) => item.id === app.candidateId,
-                );
-                if (!c) return null;
-                return (
-                  <label
-                    key={app.id}
-                    className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-[#f5f8f5]"
-                  >
-                    <input
-                      type="checkbox"
-                      className="accent-[#347452]"
-                      checked={selected.includes(app.id)}
-                      onChange={() => toggle(app.id)}
-                    />
-                    <span>
-                      <span className="block text-sm font-medium text-[#385548]">
-                        {c.firstName} {c.lastName}
-                      </span>
-                      <span className="mt-0.5 block text-xs text-[#87938c]">
-                        {c.email}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          )}
-          <div className="mt-4 border-t border-[#edf1ee] pt-4">
-            <p className="text-xs font-semibold text-[#596f62]">
-              Default exclusions
-            </p>
-            <p className="mt-1 text-xs leading-5 text-[#87938c]">
-              Referral confirmed, not selected, slot filled, and already
-              notified applicants.
-            </p>
-          </div>
-        </Panel>
-        <div className="space-y-5">
-          <Panel
-            title="Message preview"
-            action={
-              <StatusPill
-                value={
-                  group === "referred" ? "Referral confirmation" : "Slot filled"
-                }
-              />
-            }
-          >
-            <div className="rounded-xl border border-[#e7ece8] bg-[#fbfcfb] p-5">
-              <p className="mb-4 text-xs text-[#849188]">
-                To:{" "}
-                {selected.length
-                  ? selected.length === 1
-                    ? person?.email
-                    : `${selected.length} selected candidates`
-                  : "Select a recipient to preview the address"}
-              </p>
-              <pre className="font-sans text-sm leading-7 whitespace-pre-wrap text-[#53665b]">
-                {template}
-              </pre>
-            </div>
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-[#87938c]">
-                Preview only · no messages queued
-              </p>
-              <div className="flex gap-2">
-                <button
-                  className={secondary}
-                  disabled={!selected.length}
-                  onClick={() => navigator.clipboard?.writeText(template)}
-                >
-                  Copy preview
-                </button>
-                <button
-                  className={button}
-                  disabled
-                  title="Email provider setup is required"
-                >
-                  Send disabled
-                </button>
-              </div>
-            </div>
-          </Panel>
-          <Panel title="Recipient summary">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Metric
-                label="Selected"
-                value={selected.length}
-                note="Manual preview selection"
-              />
-              <Metric
-                label="Available"
-                value={recipients.length}
-                note="After default exclusions"
-              />
-              <Metric
-                label="Configured provider"
-                value="None"
-                note="Email is not connected"
-              />
-            </div>
-            <p className="mt-4 text-xs leading-5 text-[#87938c]">
-              Confirm the job and recipient list before any future sending
-              feature. Delivery would be a separate step from changing
-              application status.
-            </p>
-          </Panel>
-        </div>
-      </div>
-    </>
-  );
-}
-
 function Settings() {
-  const { jobs, activity, resetDemo, mode, session } = useWorkspace();
+  const { jobs, activity, session } = useWorkspace();
   const [message, setMessage] = useState("");
   const [deletionRequests, setDeletionRequests] = useState<
     {
@@ -2685,9 +2388,9 @@ function Settings() {
   }, []);
 
   useEffect(() => {
-    if (mode === "connected" && session?.isAdmin === true)
+    if (session?.isAdmin === true)
       queueMicrotask(() => void loadDeletionRequests());
-  }, [mode, session?.isAdmin, loadDeletionRequests]);
+  }, [session?.isAdmin, loadDeletionRequests]);
 
   async function processDeletionRequest(id: string) {
     setProcessingId(id);
@@ -2720,7 +2423,7 @@ function Settings() {
       <PageTitle
         eyebrow="Owner workspace · Configuration"
         title="Settings and audit"
-        description="Review demo configuration, decision safeguards, and recorded local actions."
+        description="Review workspace access, decision safeguards, and recorded actions."
       />
       <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
         <div className="space-y-5">
@@ -2728,20 +2431,14 @@ function Settings() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-[#395749]">
-                  {mode === "demo"
-                    ? "Browser demo only"
-                    : (session?.user?.email ?? "Verified owner account")}
+                  {session?.user?.email ?? "Verified owner account"}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-[#87938c]">
-                  {mode === "demo"
-                    ? "No real admin authentication or account allowlist is configured."
-                    : "Connected workspace access was verified for this admin session."}
+                  Connected workspace access was verified for this admin
+                  session.
                 </p>
               </div>
-              <StatusPill
-                value={mode === "demo" ? "not authenticated" : "owner verified"}
-                tone={mode === "demo" ? "amber" : "green"}
-              />
+              <StatusPill value="owner verified" tone="green" />
             </div>
           </Panel>
           <Panel title="Review defaults">
@@ -2826,7 +2523,7 @@ function Settings() {
               Open notification preview →
             </Link>
           </Panel>
-          {mode === "connected" && session?.isAdmin === true && (
+          {session?.isAdmin === true && (
             <Panel
               title="Data deletion requests"
               action={
@@ -2899,7 +2596,7 @@ function Settings() {
             title="Audit and activity"
             action={
               <span className="text-xs text-[#87938c]">
-                {activity.length} local events
+                {activity.length} events
               </span>
             }
           >
@@ -2930,7 +2627,7 @@ function Settings() {
             ) : (
               <Empty
                 title="No events yet"
-                text="Local demo actions will appear here when the workspace records them."
+                text="Workspace and system updates will appear here."
               />
             )}
           </Panel>
@@ -2955,28 +2652,6 @@ function Settings() {
               ))}
             </div>
           </Panel>
-          {mode === "demo" && (
-            <Panel title="Reset this browser demo">
-              <p className="text-sm leading-6 text-[#738178]">
-                Reset restores the original fictional sample records and removes
-                local changes from this browser tab.
-              </p>
-              <button
-                className="mt-4 rounded-xl border border-[#edd4cd] px-4 py-2.5 text-sm font-semibold text-[#985849] hover:bg-[#fcf2ef]"
-                onClick={() => {
-                  resetDemo();
-                  setMessage("Demo data reset for this browser tab.");
-                }}
-              >
-                Reset demo data
-              </button>
-              {message && (
-                <p className="mt-3 text-xs text-[#52765d]" role="status">
-                  {message}
-                </p>
-              )}
-            </Panel>
-          )}
         </div>
       </div>
     </>
@@ -3000,7 +2675,6 @@ export default function AdminWorkspace() {
     return <CandidateDetail applicationId={id} />;
   if (section === "compare") return <Compare />;
   if (section === "referrals" && id) return <ReferralPrep applicationId={id} />;
-  if (section === "notifications") return <Notifications />;
   if (section === "settings") return <Settings />;
   return (
     <Empty

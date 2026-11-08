@@ -1,4 +1,4 @@
-import type { Application, Job, ReferralSlot } from "@/lib/demo/types";
+import type { Application, Job, ReferralSlot } from "@/lib/domain/types";
 
 export function getReferralSlot(
   job: Job,

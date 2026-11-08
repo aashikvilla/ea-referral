@@ -208,7 +208,7 @@ Recording inspected: `Screen Recording 2026-10-23 at 10.23.04 PM.mov`, EA referr
 
 Exact prompt: **'Anything else you'd like to share?'** Supporting copy: 'Your resume is all I need. But if you have a project or something else that shows why you're a good fit, feel free to add it.' Controls: **'Yes, I'd like to add something'** / **'No, continue with my resume'**.
 
-On Yes only, reveal: (a) 'What would you like me to know?' textarea with max 500 Unicode characters (server and client validated), (b) optional portfolio/GitHub/project URLs (one or more), (c) optional multi-file documents upload with individual remove controls, cumulative size meter, combined maximum 10 MB (10,485,760 bytes), per-file validation. Suggested file types: PDF, DOCX, TXT; allow common safe image formats only if useful for evidence, never executable/archives. Set an app-defined per-file cap as well; total across extras <=10 MB, not counting mandatory resume. (d) compact expandable hints: what you built, your contribution, relevant JD match, measurable results, demo/case study.
+On Yes only, reveal: (a) 'What would you like me to know?' textarea with max 500 Unicode characters (server and client validated), (b) optional portfolio/GitHub/project URLs (one or more), (c) optional multi-file documents upload with individual remove controls, cumulative size meter, combined maximum 10 MB (10,485,760 bytes), per-file validation. Suggested file types: PDF, DOCX, TXT; allow common safe image formats only if useful for evidence, never executable/archives. Set an app-defined per-file cap as well; total across extras <=10 MB, not counting mandatory resume. (d) compact expandable hints: what you built, your contribution, relevant JD match, measurable results, case studies.
 
 Candidate may submit no extras, text only, links only, files only, or combinations. Clicking No should skip storage of extra material. **Never boost the match score for merely opting in**; only substantive JD evidence may affect assessment, and applicant claims must be labeled as such. Candidate skip is not interpreted as lack of seriousness despite the optional opportunity for motivated applicants to demonstrate their fit.
 
@@ -427,7 +427,7 @@ Job verification: respect official website access policy, never claim status fro
 
 ## 19. Phased implementation plan / Codex tasks
 
-**Phase 0 — Repository & decision fixtures.** Next.js + TypeScript, Tailwind/shadcn/ui, Supabase local/remote setup, migrations, typed Zod schemas, test stack, owner authentication, `.env.example`, README. Seed 3 fake roles and candidates (never use real recording PII). Establish config for EA source options and policy controls. Deliver architecture docs and CI.
+**Phase 0 — Repository & decision fixtures.** Next.js + TypeScript, Tailwind/shadcn/ui, Supabase local/remote setup, migrations, typed Zod schemas, test stack, owner authentication, `.env.example`, README. Keep synthetic candidate and job records in automated tests only; do not seed runtime application data. Establish config for EA source options and policy controls. Deliver architecture docs and CI.
 
 **Phase 1 — Job availability & intake.** Canonical job resolver, slot check, job CRUD, provider interface + manual availability fallback, applicant public page and early exits; instrument events; integration tests for availability unknown/races.
 
@@ -439,7 +439,7 @@ Job verification: respect official website access policy, never claim status fro
 
 **Phase 5 — Production hardening & pilot.** Accessibility/responsiveness, security review, file scanning, limits, deletion/retention, concurrency/load tests (hundreds of applicants), provider verification behavior, observability, deploy and limited real-user pilot.
 
-**Definition of done per phase:** code, DB migration, unit + integration tests, responsive UI states, documented config changes, local demo with seeded fake data; no reliance on unfinished external integrations.
+**Definition of done per phase:** code, DB migration, unit + integration tests, responsive UI states, documented config changes, and a connected staging deployment using synthetic test data; no reliance on unfinished external integrations.
 
 ## 20. Non-functional targets and measurable success
 
@@ -478,7 +478,7 @@ docs/{decisions,contracts,runbooks}/
 
 ## 23. First Codex instruction — copy verbatim into coding session
 
-> Read `EA_Referral_Assistant_PRD.md` entirely and treat it as the source of truth. This is a single-admin personal EA referral tool. Begin with Phase 0 and Phase 1 only, and create a working Next.js + TypeScript + Supabase project, migrations, app shell, admin auth, job management, public job link, internal referral-slot check, mockable EA job-availability provider with a manual verified-open fallback, and intake eligibility stop messages. Seed fictional data. Include unit/integration tests and a short README with local setup steps. Do not automate EA portal submission, invent EA dropdown options, claim that HTTP errors mean jobs are closed, or build a multi-tenant SaaS. Show the file tree, design tradeoffs and how to run/tests; when a detail is unverified, isolate it in typed configuration. Preserve the documented phase boundaries and use follow-on tasks for later phases.
+> Read `EA_Referral_Assistant_PRD.md` entirely and treat it as the source of truth. This is a single-admin personal EA referral tool. Begin with Phase 0 and Phase 1 only, and create a working Next.js + TypeScript + Supabase project, migrations, app shell, admin auth, job management, public job link, internal referral-slot check, mockable EA job-availability provider with a manual verified-open fallback, and intake eligibility stop messages. Use synthetic data only in automated tests. Include unit/integration tests and a short README with local setup steps. Do not automate EA portal submission, invent EA dropdown options, claim that HTTP errors mean jobs are closed, or build a multi-tenant SaaS. Show the file tree, design tradeoffs and how to run/tests; when a detail is unverified, isolate it in typed configuration. Preserve the documented phase boundaries and use follow-on tasks for later phases.
 
 ---
 
