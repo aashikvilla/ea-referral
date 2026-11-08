@@ -24,7 +24,7 @@ export function ReferralHome() {
         mood={guideState.mood}
         layout="hero"
         headingLevel="h1"
-        title="Hey, I’m Ashik."
+        title="Hey, I’m Aashik."
         message={guideState.message}
       />
 

@@ -258,7 +258,7 @@ export function IntakeFlow({ jobId }: { jobId: string }) {
     },
     complete: {
       title: "Your request is in.",
-      message: "Ashik will review your request and reply within two days.",
+      message: "Aashik will review your request and reply within two days.",
     },
     stopped: {
       title: "It’s okay to pause here.",
@@ -1910,7 +1910,7 @@ function CompleteStep({
       </span>
       <p className="mt-5 text-sm leading-6 text-[#526174]">
         {connected
-          ? "Ashik will review your request and reply within two days. This request is not an EA job application, and no referral has been submitted."
+          ? "Aashik will review your request and reply within two days. This request is not an EA job application, and no referral has been submitted."
           : "The fictional request has been added to this tab’s demo workspace. It has not been sent to EA, and no referral was submitted."}
       </p>
       <div className="mt-5 rounded-xl bg-[#f1f6fc] p-4 text-sm">

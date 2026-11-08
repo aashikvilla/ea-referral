@@ -16,7 +16,7 @@ export function CandidateShell({
         <Link
           href="/"
           className="flex min-w-0 items-center gap-3"
-          aria-label="With Ashik home"
+          aria-label="With Aashik home"
         >
           <span className="relative grid size-10 shrink-0 place-items-center rounded-[15px] bg-[#2456c7] text-white shadow-[0_6px_16px_-8px_rgba(36,86,199,0.75)]">
             <svg
@@ -43,7 +43,7 @@ export function CandidateShell({
           </span>
           <span className="min-w-0">
             <span className="block text-[15px] font-bold tracking-tight text-[#142b4b]">
-              with Ashik
+              with Aashik
             </span>
           </span>
         </Link>

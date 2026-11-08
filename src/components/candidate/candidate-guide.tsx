@@ -59,7 +59,7 @@ export function CandidateGuide({
       </div>
       <div className="guide-card__copy">
         <p className="guide-card__eyebrow">
-          Ashik <span aria-hidden="true">·</span> here to help
+          Aashik <span aria-hidden="true">·</span> here to help
         </p>
         <p className="guide-card__label">{moodLabel[mood]}</p>
         <Heading className="guide-card__title">{title}</Heading>

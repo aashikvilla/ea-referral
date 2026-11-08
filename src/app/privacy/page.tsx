@@ -13,7 +13,7 @@ export default function PrivacyPage() {
           Your information, plainly.
         </h1>
         <p className="mt-5 text-lg leading-8 text-[#526174]">
-          With Ashik is an independent personal referral assistant, not an EA
+          With Aashik is an independent personal referral assistant, not an EA
           service. A request asks an employee to consider referring you; it is
           not an application to EA. EA makes all hiring decisions.
         </p>
@@ -69,7 +69,7 @@ export default function PrivacyPage() {
           href="/"
           className="mt-10 inline-flex min-h-11 items-center rounded-full border border-[#c9d9ea] px-5 text-sm font-semibold text-[#2456c7]"
         >
-          Back to Ashik
+          Back to Aashik
         </Link>
       </article>
     </CandidateShell>

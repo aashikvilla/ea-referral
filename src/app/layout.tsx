@@ -6,7 +6,7 @@ import { DemoWorkspaceProvider } from "@/lib/demo/workspace";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "with Ashik | Personal Referral Guide",
+  title: "with Aashik | Personal Referral Guide",
   description: "Personal help with a referral request and follow-up.",
 };
 
