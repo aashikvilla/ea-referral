@@ -44,7 +44,7 @@ npm run start        # Serve the production build
 
 The Vercel project `ea-referral` is linked to `aashikvilla/ea-referral`, deploys `main` with Node 24, and uses `https://ea-referral.vercel.app`. Its environment is connected-only. The Supabase project is active; all five repository migrations are applied, ten referral tables have RLS and FORCE RLS enabled, client roles have no table access, the service role has the required access, the resume bucket is private, and database advisors report no issues.
 
-The production app remains unavailable until an owner account is created in Supabase Auth and its UUID is set as `ADMIN_USER_ID`. Email OTP delivery also needs configuration before connected intake can be used. See the setup guide for the complete checklist and limits.
+The owner account exists and its UUID is set as `ADMIN_USER_ID` in Vercel Production. Configure and verify Supabase email OTP delivery before using connected sign-in and intake. See the setup guide for the complete checklist and limits.
 
 ## Boundaries
 
