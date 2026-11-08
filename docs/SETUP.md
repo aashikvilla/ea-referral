@@ -129,7 +129,7 @@ The endpoint must return a successful HTTP status and a JSON response no larger 
 
 ## 4. Local and deployment checks
 
-The repository requires Node.js 24 or newer (`.nvmrc` selects 24) and npm. From the repository root:
+The repository pins Node.js 24 (`.nvmrc`, `package.json`, GitHub Actions, and Vercel project settings) and uses npm. From the repository root:
 
 ```sh
 npm ci
